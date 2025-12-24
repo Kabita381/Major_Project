@@ -1,20 +1,52 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom"; 
+import api from "../../api/axios"; // Make sure path matches your project
 import "./login.css"; 
 
 export default function EmployeeLogin({ setUser }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate(); 
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Example credentials - update these based on your database
-    if (email && password) {
-      const employeeSession = { role: "employee", email: email };
-      localStorage.setItem("user_session", JSON.stringify(employeeSession));
-      setUser(employeeSession);
+
+    try {
+      if (!email.trim() || !password.trim()) {
+        alert("Please enter email/username and password");
+        return;
+      }
+
+      const payload = {
+        usernameOrEmail: email.trim(),
+        password: password.trim(),
+        role: "Employee" // Role sent to backend for validation
+      };
+
+      const response = await api.post("/auth/login", payload);
+
+      // Validate role on frontend (backend already checks role)
+      if (response.data.role.toUpperCase() !== "EMPLOYEE") {
+        alert("Unauthorized role for employee portal");
+        return;
+      }
+
+      // Save session
+      localStorage.setItem("user_session", JSON.stringify(response.data));
+      setUser(response.data);
+
+      // Redirect to employee dashboard
       navigate("/employee/dashboard"); 
+
+    } catch (err) {
+      console.error("Employee login error:", err);
+
+      if (err.response && err.response.data) {
+        alert(err.response.data.message || "Something went wrong");
+      } else {
+        alert("Something went wrong. Please check backend or network");
+      }
     }
   };
 
@@ -29,25 +61,38 @@ export default function EmployeeLogin({ setUser }) {
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label>Employee Email</label>
+            <label>Email or Username</label>
             <input
-              type="email"
-              placeholder="employee@nast.edu.np"
+              type="text"
+              placeholder="Enter username or email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ position: "relative" }}>
             <label>Password</label>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              style={{ paddingRight: "30px" }}
             />
+            <span
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "35px",
+                cursor: "pointer",
+                userSelect: "none"
+              }}
+            >
+              {showPassword ? "👁️‍🗨️" : "👁️"}
+            </span>
           </div>
 
           <button type="submit" className="btn-primary" style={{ backgroundColor: '#059669' }}>

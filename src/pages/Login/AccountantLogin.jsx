@@ -1,19 +1,53 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"; 
-import "./login.css"; 
+import { useNavigate } from "react-router-dom";
+import api from "../../api/axios"; // Make sure path matches your project
+import "./login.css";
 
 export default function AccountantLogin({ setUser }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const navigate = useNavigate(); 
+  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email && password) {
-      const accountantSession = { role: "accountant", email: email };
-      localStorage.setItem("user_session", JSON.stringify(accountantSession));
-      setUser(accountantSession);
-      navigate("/accountant/dashboard"); 
+
+    try {
+      if (!email.trim() || !password.trim()) {
+        alert("Please enter email/username and password");
+        return;
+      }
+
+     const payload = {
+  usernameOrEmail: email.trim(),
+  password: password.trim(),
+  role: "Accountant" // or "ADMIN", "EMPLOYEE"
+};
+
+
+      const response = await api.post("/auth/login", payload);
+
+      // Validate role on frontend (backend already checks role)
+      if (response.data.role.toUpperCase() !== "ACCOUNTANT") {
+        alert("Unauthorized role for accountant portal");
+        return;
+      }
+
+      // Save session
+      localStorage.setItem("user_session", JSON.stringify(response.data));
+      setUser(response.data);
+
+      // Redirect to accountant dashboard
+      navigate("/accountant/dashboard");
+
+    } catch (err) {
+      console.error("Accountant login error:", err);
+
+      if (err.response && err.response.data) {
+        alert(err.response.data.message || "Something went wrong");
+      } else {
+        alert("Something went wrong. Please check backend or network");
+      }
     }
   };
 
@@ -28,25 +62,38 @@ export default function AccountantLogin({ setUser }) {
 
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label>Accountant Email</label>
+            <label>Email or Username</label>
             <input
-              type="email"
-              placeholder="accountant@nast.edu.np"
+              type="text"
+              placeholder="Enter username or email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ position: "relative" }}>
             <label>Password</label>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              style={{ paddingRight: "30px" }}
             />
+            <span
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "35px",
+                cursor: "pointer",
+                userSelect: "none"
+              }}
+            >
+              {showPassword ? "👁️‍🗨️" : "👁️"}
+            </span>
           </div>
 
           <button type="submit" className="btn-primary">

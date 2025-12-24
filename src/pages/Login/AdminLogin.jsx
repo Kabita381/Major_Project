@@ -1,20 +1,46 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../../api/axios";   // Make sure path matches your project
 
 export default function AdminLogin({ setUser }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email === "admin@nast.edu.np" && password === "admin123") {
-      const adminSession = { role: "admin", email: email };
-      localStorage.setItem("user_session", JSON.stringify(adminSession));
-      setUser(adminSession);
+
+    try {
+      // Trim inputs to avoid trailing/leading space issues
+      const payload = {
+        usernameOrEmail: email.trim(),
+        password: password.trim(),
+      };
+
+      console.log("Login payload:", payload);
+
+      const response = await api.post("/auth/login", payload);
+
+      console.log("Login response:", response.data);
+
+      // Save admin session
+      localStorage.setItem("user_session", JSON.stringify(response.data));
+      setUser(response.data);
+
+      // Redirect to admin dashboard
       navigate("/admin/dashboard");
-    } else {
-      alert("Invalid Admin Credentials!");
+
+    } catch (err) {
+      console.error("Login error:", err);
+
+      // Show backend error message if available
+      if (err.response && err.response.data) {
+        const message = err.response.data.message || "Something went wrong";
+        alert(message);
+      } else {
+        alert("Something went wrong. Please check the backend or network.");
+      }
     }
   };
 
@@ -28,33 +54,47 @@ export default function AdminLogin({ setUser }) {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {/* Username or Email */}
           <div className="form-group">
-            <label>Admin Email</label>
+            <label>Admin Email or Username</label>
             <input
-              type="email"
-              placeholder="admin@nast.edu.np"
+              type="text"  // Accepts both username and email
+              placeholder="Enter username or email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
 
-          <div className="form-group">
+          {/* Password with show/hide */}
+          <div className="form-group" style={{ position: "relative" }}>
             <label>Password</label>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              style={{ paddingRight: "30px" }} // space for eye icon
             />
+            <span
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "35px",
+                cursor: "pointer",
+                userSelect: "none"
+              }}
+            >
+              {showPassword ? "👁️‍🗨️" : "👁️"}
+            </span>
           </div>
 
           <button type="submit" className="btn-primary">
             Sign In
           </button>
         </form>
-        
 
         <div className="auth-footer">
           <button onClick={() => navigate("/")} className="btn-text">

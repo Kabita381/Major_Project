@@ -11,7 +11,9 @@ import { getDesignations } from "../../api/designationApi";
 import ConfirmModal from "../../components/ConfirmModal";
 import "./Employees.css";
 
-// MessageModal Component
+/* =========================
+   MessageModal Component
+   ========================= */
 function MessageModal({ show, type, message, onClose }) {
   if (!show) return null;
   return (
@@ -36,7 +38,11 @@ export default function Employees() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
-  const [messageData, setMessageData] = useState({ show: false, type: "", message: "" });
+  const [messageData, setMessageData] = useState({
+    show: false,
+    type: "",
+    message: "",
+  });
 
   useEffect(() => {
     fetchEmployees();
@@ -45,29 +51,30 @@ export default function Employees() {
     fetchActiveStats();
   }, []);
 
+  /* =========================
+     FETCH FUNCTIONS
+     ========================= */
   const fetchEmployees = async () => {
     try {
       const res = await getEmployees();
       setEmployees(res.data || []);
-    } catch (err) {
+    } catch {
       showMessage("error", "Failed to fetch employees");
     }
   };
 
   const fetchDepartments = async () => {
     try {
-      const depts = await getDepartments();
-      setDepartments(depts);
-    } catch (err) {
+      setDepartments(await getDepartments());
+    } catch {
       showMessage("error", "Failed to fetch departments");
     }
   };
 
   const fetchDesignations = async () => {
     try {
-      const desigs = await getDesignations();
-      setDesignations(desigs);
-    } catch (err) {
+      setDesignations(await getDesignations());
+    } catch {
       showMessage("error", "Failed to fetch designations");
     }
   };
@@ -76,11 +83,12 @@ export default function Employees() {
     try {
       const res = await getActiveEmployeeStats();
       setActiveStats(res.data || {});
-    } catch (err) {
-      console.error(err);
-    }
+    } catch {}
   };
 
+  /* =========================
+     MESSAGE HELPERS
+     ========================= */
   const showMessage = (type, message) => {
     setMessageData({ show: true, type, message });
   };
@@ -89,37 +97,48 @@ export default function Employees() {
     setMessageData({ show: false, type: "", message: "" });
   };
 
-const handleSearch = async () => {
-  if (!searchId) return fetchEmployees();
+  /* =========================
+     EMAIL UNIQUENESS CHECK
+     NEW FEATURE
+     ========================= */
+  const emailExists = (email, currentId = null) => {
+    return employees.some(
+      (emp) =>
+        emp.email === email &&
+        (currentId === null || emp.empId !== currentId)
+    );
+  };
 
-  try {
-    const res = await getEmployees(searchId);
+  /* =========================
+     SEARCH
+     ========================= */
+  const handleSearch = async () => {
+    if (!searchId) return fetchEmployees();
 
-    if (!res.data) {
+    try {
+      const res = await getEmployees(searchId);
+      if (!res.data) {
+        setEmployees([]);
+        showMessage("error", `Employee with ID ${searchId} not found`);
+      } else {
+        setEmployees([res.data]);
+      }
+    } catch (err) {
       setEmployees([]);
-      showMessage("error", `Employee with ID ${searchId} not found`);
-    } else {
-      setEmployees([res.data]);
+      const errorMsg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "An error occurred while searching";
+      showMessage("error", errorMsg);
     }
-  } catch (err) {
-    setEmployees([]);
+  };
 
-    // Extract backend message
-    let errorMsg = "An error occurred while searching";
-    if (err.response && err.response.data && err.response.data.message) {
-      errorMsg = err.response.data.message; // Should be "Employee not found with id: X"
-    } else if (err.message) {
-      errorMsg = err.message;
-    }
-
-    showMessage("error", errorMsg);
-  }
-};
-
-
+  /* =========================
+     EDIT CONTROLS
+     ========================= */
   const startEdit = (emp) => {
     setEditingId(emp.empId);
-    setAddingNew(false); // Close add row if open
+    setAddingNew(false);
     setFormData({
       ...emp,
       deptId: emp.department?.deptId,
@@ -131,10 +150,20 @@ const handleSearch = async () => {
     setEditingId(null);
     setAddingNew(false);
     setFormData({});
-    fetchEmployees(); // Reload DB data
+    fetchEmployees();
   };
 
+  /* =========================
+     SAVE (CREATE + UPDATE)
+     WITH EMAIL CHECK
+     ========================= */
   const saveEdit = async (id) => {
+    // FRONTEND EMAIL VALIDATION
+    if (formData.email && emailExists(formData.email, addingNew ? null : id)) {
+      showMessage("error", "Email already exists");
+      return;
+    }
+
     try {
       const payload = {
         ...formData,
@@ -156,11 +185,16 @@ const handleSearch = async () => {
       setEditingId(null);
       setFormData({});
     } catch (err) {
-      console.error(err);
-      showMessage("error", "An error occurred. Please try again.");
+      const msg =
+        err?.response?.data?.message ||
+        "An error occurred. Please try again.";
+      showMessage("error", msg);
     }
   };
 
+  /* =========================
+     DELETE
+     ========================= */
   const handleDeleteClick = (id) => {
     setDeleteId(id);
     setShowConfirm(true);
@@ -172,8 +206,7 @@ const handleSearch = async () => {
       showMessage("success", "Employee successfully deleted!");
       fetchEmployees();
       fetchActiveStats();
-    } catch (err) {
-      console.error(err);
+    } catch {
       showMessage("error", "Failed to delete employee");
     } finally {
       setShowConfirm(false);
@@ -186,6 +219,9 @@ const handleSearch = async () => {
     setDeleteId(null);
   };
 
+  /* =========================
+     FORM CHANGE
+     ========================= */
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({
@@ -194,6 +230,9 @@ const handleSearch = async () => {
     });
   };
 
+  /* =========================
+     RENDER
+     ========================= */
   return (
     <>
       <h1>Employees</h1>
@@ -212,7 +251,9 @@ const handleSearch = async () => {
           value={searchId}
           onChange={(e) => setSearchId(e.target.value)}
         />
-        <button className="btn-small update" onClick={handleSearch}>Search</button>
+        <button className="btn-small update" onClick={handleSearch}>
+          Search
+        </button>
       </div>
 
       <div className="active-stats">
@@ -259,7 +300,7 @@ const handleSearch = async () => {
             </tr>
           </thead>
           <tbody>
-            {/* Add New Employee Row */}
+            {/* ADD NEW ROW */}
             {addingNew && (
               <tr>
                 <td>New</td>
@@ -272,7 +313,9 @@ const handleSearch = async () => {
                   <select name="designationId" value={formData.designationId || ""} onChange={handleChange}>
                     <option value="">Select Designation</option>
                     {designations.map((d) => (
-                      <option key={d.designationId} value={d.designationId}>{d.designationTitle}</option>
+                      <option key={d.designationId} value={d.designationId}>
+                        {d.designationTitle}
+                      </option>
                     ))}
                   </select>
                 </td>
@@ -284,7 +327,9 @@ const handleSearch = async () => {
                   <select name="deptId" value={formData.deptId || ""} onChange={handleChange}>
                     <option value="">Select Department</option>
                     {departments.map((d) => (
-                      <option key={d.deptId} value={d.deptId}>{d.deptName}</option>
+                      <option key={d.deptId} value={d.deptId}>
+                        {d.deptName}
+                      </option>
                     ))}
                   </select>
                 </td>
@@ -297,7 +342,7 @@ const handleSearch = async () => {
               </tr>
             )}
 
-            {/* Employee List */}
+            {/* EXISTING EMPLOYEES */}
             {employees.map((emp) => (
               <tr key={emp.empId}>
                 <td>{emp.empId}</td>
@@ -306,26 +351,34 @@ const handleSearch = async () => {
                 <td>{editingId === emp.empId ? <input name="email" value={formData.email} onChange={handleChange} /> : emp.email}</td>
                 <td>{editingId === emp.empId ? <input name="contact" value={formData.contact} onChange={handleChange} /> : emp.contact}</td>
                 <td>{editingId === emp.empId ? <input name="maritalStatus" value={formData.maritalStatus} onChange={handleChange} /> : emp.maritalStatus}</td>
-                <td>{editingId === emp.empId ? (
-                  <select name="designationId" value={formData.designationId || ""} onChange={handleChange}>
-                    <option value="">Select Designation</option>
-                    {designations.map((d) => (
-                      <option key={d.designationId} value={d.designationId}>{d.designationTitle}</option>
-                    ))}
-                  </select>
-                ) : emp.position?.designationTitle}</td>
+                <td>
+                  {editingId === emp.empId ? (
+                    <select name="designationId" value={formData.designationId || ""} onChange={handleChange}>
+                      <option value="">Select Designation</option>
+                      {designations.map((d) => (
+                        <option key={d.designationId} value={d.designationId}>
+                          {d.designationTitle}
+                        </option>
+                      ))}
+                    </select>
+                  ) : emp.position?.designationTitle}
+                </td>
                 <td>{editingId === emp.empId ? <input name="education" value={formData.education} onChange={handleChange} /> : emp.education}</td>
                 <td>{editingId === emp.empId ? <input name="employmentStatus" value={formData.employmentStatus} onChange={handleChange} /> : emp.employmentStatus}</td>
                 <td>{editingId === emp.empId ? <input type="date" name="joiningDate" value={formData.joiningDate} onChange={handleChange} /> : emp.joiningDate}</td>
                 <td>{editingId === emp.empId ? <input name="address" value={formData.address} onChange={handleChange} /> : emp.address}</td>
-                <td>{editingId === emp.empId ? (
-                  <select name="deptId" value={formData.deptId || ""} onChange={handleChange}>
-                    <option value="">Select Department</option>
-                    {departments.map((d) => (
-                      <option key={d.deptId} value={d.deptId}>{d.deptName}</option>
-                    ))}
-                  </select>
-                ) : emp.department?.deptName}</td>
+                <td>
+                  {editingId === emp.empId ? (
+                    <select name="deptId" value={formData.deptId || ""} onChange={handleChange}>
+                      <option value="">Select Department</option>
+                      {departments.map((d) => (
+                        <option key={d.deptId} value={d.deptId}>
+                          {d.deptName}
+                        </option>
+                      ))}
+                    </select>
+                  ) : emp.department?.deptName}
+                </td>
                 <td>{editingId === emp.empId ? <input type="checkbox" name="isActive" checked={formData.isActive} onChange={handleChange} /> : emp.isActive ? "Yes" : "No"}</td>
                 <td>{emp.createdAt}</td>
                 <td className="actions-col">

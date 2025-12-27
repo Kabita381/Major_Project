@@ -1,39 +1,47 @@
 import { useEffect, useState } from "react";
-import "./Attendance.css";
+import api from "../../api/axios";
+import "../Admin/Attendance.css";
 
-// Sample employee and attendance data
-const employeesData = [
-  { emp_id: 1, first_name: "Rahul", last_name: "Sharma" },
-  { emp_id: 2, first_name: "Anita", last_name: "Patel" },
-  { emp_id: 3, first_name: "John", last_name: "Doe" },
-];
+export default function AdminAttendance() {
+  const [employees, setEmployees] = useState([]);
+  const [selectedEmp, setSelectedEmp] = useState("");
+  const [attendance, setAttendance] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-const attendanceData = [
-  { emp_id: 1, date: "2025-12-17", status: "Present" },
-  { emp_id: 1, date: "2025-12-18", status: "Absent" },
-  { emp_id: 1, date: "2025-12-19", status: "Present" },
-  { emp_id: 2, date: "2025-12-17", status: "Leave" },
-  { emp_id: 2, date: "2025-12-18", status: "Present" },
-  { emp_id: 3, date: "2025-12-17", status: "Absent" },
-  { emp_id: 3, date: "2025-12-18", status: "Present" },
-];
-
-export default function AdminAttendanceOverview() {
-  const [selectedEmployee, setSelectedEmployee] = useState("");
-  const [employeeHistory, setEmployeeHistory] = useState([]);
-
+  // Fetch employees on mount
   useEffect(() => {
-    if (selectedEmployee) {
-      const empHistory = attendanceData.filter(
-        (a) => a.emp_id === parseInt(selectedEmployee)
-      );
-      setEmployeeHistory(empHistory);
-    } else {
-      setEmployeeHistory([]);
-    }
-  }, [selectedEmployee]);
+    const fetchEmployees = async () => {
+      try {
+        const res = await api.get("/employees");
+        setEmployees(res.data);
+      } catch (err) {
+        console.error("Failed to load employees", err);
+      }
+    };
+    fetchEmployees();
+  }, []);
 
-  const summary = employeeHistory.reduce(
+  // Fetch attendance when selected employee changes
+  useEffect(() => {
+    const fetchAttendance = async (empId) => {
+      setLoading(true);
+      try {
+        const res = await api.get(`/attendance/employee/${empId}`);
+        setAttendance(res.data);
+      } catch (err) {
+        console.error("Failed to load attendance", err);
+        setAttendance([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (selectedEmp) fetchAttendance(parseInt(selectedEmp));
+    else setAttendance([]);
+  }, [selectedEmp]);
+
+  // Attendance summary
+  const summary = attendance.reduce(
     (acc, curr) => {
       if (curr.status === "Present") acc.present += 1;
       if (curr.status === "Absent") acc.absent += 1;
@@ -45,26 +53,32 @@ export default function AdminAttendanceOverview() {
 
   return (
     <div className="attendance-container">
-      <h1>Admin - Employee Attendance Overview</h1>
+      <h1>Admin - Employee Attendance</h1>
 
-      <div className="attendance-header">
+      <div className="filter-bar">
         <label>
           Select Employee:{" "}
           <select
-            value={selectedEmployee}
-            onChange={(e) => setSelectedEmployee(e.target.value)}
+            value={selectedEmp}
+            onChange={(e) => setSelectedEmp(e.target.value)}
           >
             <option value="">-- Select Employee --</option>
-            {employeesData.map((emp) => (
-              <option key={emp.emp_id} value={emp.emp_id}>
-                {emp.first_name} {emp.last_name}
+            {employees.map((emp) => (
+              <option key={emp.empId} value={emp.empId}>
+                {emp.firstName} {emp.lastName}
               </option>
             ))}
           </select>
         </label>
       </div>
 
-      {selectedEmployee && (
+      {loading && <p>Loading attendance...</p>}
+
+      {!loading && selectedEmp && attendance.length === 0 && (
+        <p>No attendance records found.</p>
+      )}
+
+      {!loading && attendance.length > 0 && (
         <>
           <h2>Attendance History</h2>
           <table className="attendance-table">
@@ -72,13 +86,23 @@ export default function AdminAttendanceOverview() {
               <tr>
                 <th>Date</th>
                 <th>Status</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>GPS</th>
               </tr>
             </thead>
             <tbody>
-              {employeeHistory.map((record, index) => (
-                <tr key={index}>
-                  <td>{record.date}</td>
-                  <td>{record.status}</td>
+              {attendance.map((a) => (
+                <tr key={a.attendanceId}>
+                  <td>{new Date(a.attendanceDate).toLocaleDateString()}</td>
+                  <td>{a.status || "-"}</td>
+                  <td>{a.checkInTime ? a.checkInTime.slice(11, 16) : "-"}</td>
+                  <td>{a.checkOutTime ? a.checkOutTime.slice(11, 16) : "-"}</td>
+                  <td>
+                    {a.inGpsLat && a.inGpsLong
+                      ? `${a.inGpsLat}, ${a.inGpsLong}`
+                      : "-"}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -15,7 +15,7 @@
   margin-bottom: 2.5rem;
 }
 
-/* TOP STATS: 3 COLUMN HORIZONTAL GRID */
+/* TOP STATS */
 .top-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -60,93 +60,67 @@
   font-weight: 800;
 }
 
-.stat-text-content .stat-subtext-bottom {
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-/* QUICK ACTIONS: 4 COLUMN GRID */
+/* TABLE STYLING */
 .section-divider-title {
   font-size: 1.25rem;
+  margin-top: 2rem;
   margin-bottom: 1.5rem;
   color: #1e293b;
   font-weight: 700;
 }
 
-.actions-flex-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-}
-
-.quick-action-box {
+.recent-table-container {
   background: white;
-  padding: 1.2rem;
-  border-radius: 0.8rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
-  cursor: pointer;
 }
 
-.quick-action-box:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  border-color: #4e73df;
-}
-
-.action-icon-small {
-  width: 48px;
-  height: 48px;
-  background: #f8fafc;
-  border-radius: 0.6rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.3rem;
-}
-
-.action-info-text h4 {
-  font-size: 0.95rem;
-  margin: 0;
-  color: #1e293b;
-  font-weight: 700;
-}
-
-.action-info-text p {
-  font-size: 0.75rem;
-  color: #64748b;
-  margin: 3px 0 0 0;
-  line-height: 1.2;
-}
-/* SEARCH BAR */
-.dashboard-search-bar {
+.recent-attendance-table {
   width: 100%;
-  max-width: 400px;
-  padding: 10px 15px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  background-color: #e8f0fe; /* new background color */
-  font-size: 16px;
-  outline: none;
-  margin-bottom: 25px;
+  border-collapse: collapse;
 }
 
-.dashboard-search-bar:focus {
-  border-color: #4e73df;
-  box-shadow: 0 0 5px rgba(78, 115, 223, 0.4);
+.recent-attendance-table th {
+  text-align: left;
+  padding: 15px;
+  font-size: 0.85rem;
+  color: #4e73df;
+  text-transform: uppercase;
+  border-bottom: 2px solid #f1f5f9;
 }
-/* Footer styling */
-.dashboard-footer {
-  margin-top: 3rem;
-  padding: 1rem 0;
-  text-align: center;
-  background-color: #4e73df; /* different color from dashboard */
-  color: #fff;
+
+.recent-attendance-table td {
+  padding: 15px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #4a5568;
+  vertical-align: middle;
+}
+
+.time-cell {
   font-weight: 600;
-  border-radius: 12px; /* rounded corners */
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  font-size: 0.95rem;
+  color: #2d3748;
+}
+
+/* STATUS BADGE VISIBILITY FIX */
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.status-badge.present {
+  background-color: #c6f6d5; /* Light Green */
+  color: #22543d;            /* Dark Green for contrast */
+  border: 1px solid #9ae6b4;
+}
+
+.no-data {
+  text-align: center;
+  color: #a0aec0;
+  padding: 20px;
+  font-style: italic;
 }

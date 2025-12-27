@@ -1,39 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [stats, setStats] = useState({
+    totalWorkforce: 0,
+    dailyAttendance: "0%",
+    leaveRequests: "00"
+  });
+  const [recentAttendance, setRecentAttendance] = useState([]);
+
+  // Formats bulky ISO strings into professional time (e.g., 02:45 pm)
+  const formatTime = (timeString) => {
+    if (!timeString) return "---";
+    try {
+      const date = new Date(timeString);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch (e) {
+      return timeString;
+    }
+  };
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch top stats cards
+        const statsRes = await axios.get('http://localhost:8080/api/dashboard/stats');
+        setStats({
+          totalWorkforce: statsRes.data.totalWorkforce,
+          dailyAttendance: statsRes.data.dailyAttendance,
+          leaveRequests: statsRes.data.leaveRequests.toString().padStart(2, '0')
+        });
+
+        // Fetch today's attendance records
+        const attendanceRes = await axios.get('http://localhost:8080/api/dashboard/recent-attendance');
+        setRecentAttendance(attendanceRes.data); 
+
+      } catch (error) {
+        console.error("Dashboard failed to fetch data:", error);
+      }
+    };
+    fetchDashboardData();
+  }, []);
 
   const adminStats = [
-    { title: "TOTAL WORKFORCE", value: "154", icon: "👥", color: "#4e73df" },
-    { title: "DAILY ATTENDANCE", value: "92%", icon: "📅", color: "#1cc88a" },
-    { title: "LEAVE REQUESTS", value: "08", icon: "📝", color: "#f6c23e" }
-  ];
-
-  const adminActions = [
-    { title: "Employee Mgmt", desc: "Add or update staff records", icon: "👤" },
-    { title: "Leave Approvals", desc: "Review pending requests", icon: "✅" },
-    { title: "System Config", desc: "Manage system settings", icon: "⚙️" },
-    { title: "Payroll Review", desc: "Verify monthly calculations", icon: "💰" }
+    { title: "TOTAL WORKFORCE", value: stats.totalWorkforce, icon: "👥" },
+    { title: "DAILY ATTENDANCE", value: stats.dailyAttendance, icon: "📅" },
+    { title: "LEAVE REQUESTS", value: stats.leaveRequests, icon: "📝" }
   ];
 
   return (
-    <div className="dashboard-container">
-      {/* Scrollable Content */}
+    <div className="dashboard-wrapper">
       <div className="dashboard-content">
         <div className="dashboard-header">
           <h1>Dashboard Overview</h1>
           <p>Real-time summary of the NAST Payroll Management System</p>
-          <input
-            type="text"
-            placeholder="Search..."
-            className="dashboard-search-bar"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
         </div>
 
-        {/* Admin Stats */}
         <div className="top-stats-grid">
           {adminStats.map((stat, index) => (
             <div key={index} className="horizontal-stat-card">
@@ -48,24 +71,39 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        <h3 className="section-divider-title">Quick Actions</h3>
-
-        <div className="actions-flex-grid">
-          {adminActions.map((action, index) => (
-            <div key={index} className="quick-action-box">
-              <div className="action-icon-small">
-                <span>{action.icon}</span>
-              </div>
-              <div className="action-info-text">
-                <h4>{action.title}</h4>
-                <p>{action.desc}</p>
-              </div>
-            </div>
-          ))}
+        <div className="dashboard-recent-section">
+          <h3 className="section-divider-title">Recent Attendance (Today)</h3>
+          <div className="recent-table-container">
+            <table className="recent-attendance-table">
+              <thead>
+                <tr>
+                  <th>Employee Name</th>
+                  <th>Designation</th>
+                  <th>Check-In Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentAttendance.length > 0 ? (
+                  recentAttendance.map((record, index) => (
+                    <tr key={index}>
+                      <td>{record.employee.firstName} {record.employee.lastName}</td>
+                      {/* Accessing Employee -> Position (Designation object) -> designationTitle */}
+                      <td>{record.employee.position?.designationTitle || "N/A"}</td>
+                      <td className="time-cell">{formatTime(record.checkInTime)}</td>
+                      <td><span className="status-badge present">Present</span></td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="no-data">No attendance recorded today</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-
-  
     </div>
   );
 };

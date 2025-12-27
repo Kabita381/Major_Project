@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../api/axios"; // Make sure path matches your project
+import api from "../../api/axios"; 
 import "./login.css";
 
 export default function AccountantLogin({ setUser }) {
@@ -13,41 +13,34 @@ export default function AccountantLogin({ setUser }) {
     e.preventDefault();
 
     try {
-      if (!email.trim() || !password.trim()) {
-        alert("Please enter email/username and password");
-        return;
-      }
-
-     const payload = {
-  usernameOrEmail: email.trim(),
-  password: password.trim(),
-  role: "Accountant" // or "ADMIN", "EMPLOYEE"
-};
-
+      const payload = {
+        usernameOrEmail: email.trim(),
+        password: password.trim()
+      };
 
       const response = await api.post("/auth/login", payload);
 
-      // Validate role on frontend (backend already checks role)
-      if (response.data.role.toUpperCase() !== "ACCOUNTANT") {
+      // ✅ Ensure the role matches the "accountant" string in App.jsx
+      if (response.data.role.toLowerCase() !== "accountant") {
         alert("Unauthorized role for accountant portal");
         return;
       }
 
-      // Save session
-      localStorage.setItem("user_session", JSON.stringify(response.data));
-      setUser(response.data);
+      // ✅ CRITICAL: Match the key "user_session" used in your App.jsx
+      const sessionData = {
+        userId: response.data.userId,
+        role: response.data.role,
+        email: response.data.email,
+        username: response.data.username
+      };
 
-      // Redirect to accountant dashboard
+      localStorage.setItem("user_session", JSON.stringify(sessionData));
+      setUser(sessionData);
       navigate("/accountant/dashboard");
 
     } catch (err) {
-      console.error("Accountant login error:", err);
-
-      if (err.response && err.response.data) {
-        alert(err.response.data.message || "Something went wrong");
-      } else {
-        alert("Something went wrong. Please check backend or network");
-      }
+      console.error("Login error:", err);
+      alert(err.response?.data?.message || "Login failed");
     }
   };
 
@@ -65,7 +58,7 @@ export default function AccountantLogin({ setUser }) {
             <label>Email or Username</label>
             <input
               type="text"
-              placeholder="Enter username or email"
+              placeholder="Enter username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -80,17 +73,10 @@ export default function AccountantLogin({ setUser }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              style={{ paddingRight: "30px" }}
             />
             <span
               onClick={() => setShowPassword(!showPassword)}
-              style={{
-                position: "absolute",
-                right: "10px",
-                top: "35px",
-                cursor: "pointer",
-                userSelect: "none"
-              }}
+              style={{ position: "absolute", right: "10px", top: "35px", cursor: "pointer" }}
             >
               {showPassword ? "👁️‍🗨️" : "👁️"}
             </span>
@@ -101,11 +87,14 @@ export default function AccountantLogin({ setUser }) {
           </button>
         </form>
 
+        {/* ✅ RESTORED FORGOT PASSWORD SECTION */}
         <div className="auth-footer">
           <button onClick={() => navigate("/")} className="btn-text">
             ← Back to Landing Page
           </button>
-          <a href="/accountant/forgot-password">Forgot Password?</a>
+          <button onClick={() => navigate("/accountant/forgot-password")} className="btn-text">
+            Forgot Password?
+          </button>
         </div>
       </div>
     </div>

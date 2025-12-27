@@ -19,7 +19,6 @@ const AccountantLayout = () => {
           <h2>NAST</h2>
         </div>
         <nav className="sidebar-menu">
-          {/* CRITICAL: No leading slashes in 'to' paths */}
           <Link to="dashboard" className={location.pathname.includes('dashboard') ? 'active' : ''}>
             🏠 Dashboard
           </Link>
@@ -41,17 +40,18 @@ const AccountantLayout = () => {
 
       {/* MAIN CONTENT SECTION */}
       <main className="main-content">
+        {/* HEADER: Search removed from here to prevent duplicates */}
         <header className="top-header">
-          <div className="search-bar">
-            <input type="text" placeholder="Search accounts..." />
+          <div className="header-left">
+            {/* This space is now clean for page-specific content */}
           </div>
           <div className="user-info">
-            <span>Accountant Finance Dept</span>
+             <div className="status-indicator-active"></div>
+             <span>Accountant: Finance Dept</span>
           </div>
         </header>
 
         <section className="page-body">
-          {/* THE OUTLET RENDERS THE CHILD COMPONENTS (Tax, Salary, etc.) */}
           <Outlet />
         </section>
       </main>

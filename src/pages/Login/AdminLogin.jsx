@@ -7,7 +7,7 @@ export default function AdminLogin({ setUser }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
@@ -23,17 +23,16 @@ const handleSubmit = async (e) => {
 
       const data = await response.json();
 
-      // ✅ FIXED: Must store data.userId so 'Leave Management' can use it
       if (response.ok && data.userId) {
+        // ✅ CRITICAL: Match the key "user_session" used in your App.jsx
         const adminSession = { 
-          userId: data.userId, // <--- CRITICAL: Needed for Approved By data
+          userId: data.userId, 
           role: data.role || "admin", 
           email: data.email,
           username: data.username 
         };
         
-        // Match the key "user" used in your LeaveAdmin.js handleLeaveAction
-        localStorage.setItem("user", JSON.stringify(adminSession));
+        localStorage.setItem("user_session", JSON.stringify(adminSession));
         setUser(adminSession);
         navigate("/admin/dashboard");
       } else {
@@ -41,14 +40,12 @@ const handleSubmit = async (e) => {
       }
     } catch (error) {
       console.error("Login error:", error);
-      alert("Backend server unreachable. Please start your Spring Boot app.");
+      alert("Backend server unreachable.");
     } finally {
       setLoading(false);
     }
   };
 
-
-  
   return (
     <div className="auth-container">
       <div className="auth-card">
@@ -62,7 +59,7 @@ const handleSubmit = async (e) => {
             <label>Admin Email or Username</label>
             <input
               type="text"
-              placeholder="admin_user or admin@payroll.com"
+              placeholder="admin_user"
               value={usernameOrEmail}
               onChange={(e) => setUsernameOrEmail(e.target.value)}
               required
@@ -82,9 +79,14 @@ const handleSubmit = async (e) => {
             {loading ? "Signing In..." : "Sign In"}
           </button>
         </form>
+
+        {/* ✅ RESTORED FORGOT PASSWORD SECTION */}
         <div className="auth-footer">
           <button onClick={() => navigate("/")} className="btn-text">
             ← Back to Portal
+          </button>
+          <button onClick={() => navigate("/admin/forgot-password")} className="btn-text">
+            Forgot Password?
           </button>
         </div>
       </div>

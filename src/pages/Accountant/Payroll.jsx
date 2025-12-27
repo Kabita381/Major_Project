@@ -1,62 +1,141 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './Payroll.css';
 
-const Payroll = () => {
-  const [employees, setEmployees] = useState([
-    { id: "EMP501", name: "Anil Bhul", base: 60000, tax: 6000, net: 54000, status: "Pending" },
-    { id: "EMP504", name: "Kabita Dhakal", base: 55000, tax: 5500, net: 49500, status: "Verified" },
-    { id: "EMP509", name: "Bharat Gurdhami", base: 58000, tax: 5800, net: 52200, status: "Pending" }
-  ]);
+const AccountantPayroll = () => {
+  const [payrolls, setPayrolls] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const toggleStatus = (id) => {
-    setEmployees(employees.map(emp => 
-      emp.id === id ? { ...emp, status: emp.status === "Pending" ? "Verified" : "Pending" } : emp
-    ));
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const res = await axios.get('http://localhost:8080/api/payrolls');
+      setPayrolls(res.data);
+    } catch (err) {
+      console.error("System Error: Connection to backend failed.", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleVerify = async (id, firstName, lastName) => {
+    const fullName = `${firstName} ${lastName || ""}`.trim();
+    if (window.confirm(`Confirm financial verification for ${fullName}?`)) {
+      try {
+        // Logic: Send PUT request to the new endpoint in PayrollController.java
+        await axios.put(`http://localhost:8080/api/payrolls/${id}/status`, { 
+          status: "VERIFIED" 
+        });
+        alert(`Success: ${fullName}'s record verified.`);
+        fetchData(); // Refresh the table to show "Verified" status
+      } catch (err) {
+        console.error("Verification failed:", err);
+        alert("Action Failed: Could not reach the server. Ensure the Backend is running.");
+      }
+    }
+  };
+
+  const filteredRecords = payrolls.filter(p => {
+    const fName = p.employee?.firstName || p.employeeName || "";
+    const lName = p.employee?.lastName || "";
+    const combined = `${fName} ${lName}`.toLowerCase();
+    const id = (p.empId || p.payrollId || "").toString();
+    return combined.includes(searchQuery.toLowerCase()) || id.includes(searchQuery);
+  });
+
+  if (loading) return <div className="loading-state">Securing Connection...</div>;
+
   return (
-    <div className="payroll-container">
-      <div className="payroll-header">
-        <h2>Salary Disbursement Review</h2>
-        <button className="batch-btn">Process All Verified</button>
+    <div className="payroll-view">
+      <div className="payroll-glass-header">
+        <div className="search-group">
+          <span className="search-icon-svg">🔍</span>
+          <input 
+            type="text" 
+            placeholder="Search by Name or ID..." 
+            className="unified-search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="user-profile-tag">
+          <div className="pulse-dot"></div>
+          <div className="tag-text">
+            <strong>Finance Accountant</strong>
+            <span>Treasury Dept</span>
+          </div>
+        </div>
       </div>
 
-      <div className="payroll-table-card">
-        <table className="payroll-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Base (Rs)</th>
-              <th>Tax/SSF</th>
-              <th>Net Pay</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {employees.map(emp => (
-              <tr key={emp.id}>
-                <td>{emp.id}</td>
-                <td className="bold">{emp.name}</td>
-                <td>{emp.base.toLocaleString()}</td>
-                <td className="text-red">-{emp.tax.toLocaleString()}</td>
-                <td className="text-green bold">{emp.net.toLocaleString()}</td>
-                <td>
-                  <span className={`badge ${emp.status.toLowerCase()}`}>{emp.status}</span>
-                </td>
-                <td>
-                  <button className="verify-btn" onClick={() => toggleStatus(emp.id)}>
-                    {emp.status === "Pending" ? "Verify" : "Undo"}
-                  </button>
-                </td>
+      <div className="payroll-body">
+        <div className="title-section">
+          <h1>Payroll Verification</h1>
+          <p>Nepal Labor Act Compliance • Fiscal Year 2081/82</p>
+        </div>
+
+        <div className="table-card">
+          <table className="verify-table">
+            <thead>
+              <tr>
+                <th>EMP ID</th>
+                <th>EMPLOYEE NAME</th>
+                <th>GROSS (RS)</th>
+                <th>NET AMOUNT</th>
+                <th>STATUS</th>
+                <th className="text-right">OPERATIONS</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredRecords.map((p) => {
+                const status = p.status ? p.status.toUpperCase() : "PENDING";
+                const isActionable = status !== "VERIFIED";
+                const fName = p.employee?.firstName || p.employeeName || "User";
+                const lName = p.employee?.lastName || "";
+
+                return (
+                  <tr key={p.payrollId}>
+                    <td className="id-col">#{p.empId || p.payrollId}</td>
+                    <td>
+                      <div className="name-stack">
+                        {/* Fix: Separated Name and Staff text */}
+                        <span className="full-name">{fName} {lName}</span>
+                        <span className="role-sub-label">Permanent Staff</span>
+                      </div>
+                    </td>
+                    <td className="mono">{p.grossSalary?.toLocaleString()}</td>
+                    <td className="mono-success">Rs. {p.netSalary?.toLocaleString()}</td>
+                    <td>
+                      <span className={`status-pill ${status.toLowerCase()}`}>
+                        {status === "VERIFIED" ? "Sent to Admin" : status}
+                      </span>
+                    </td>
+                    <td className="text-right">
+                      {isActionable ? (
+                        <button 
+                          className="btn-verify-active"
+                          onClick={() => handleVerify(p.payrollId, fName, lName)}
+                        >
+                          Verify Record
+                        </button>
+                      ) : (
+                        <button className="btn-finalized" disabled>
+                          Verified ✓
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 };
 
-export default Payroll;
+export default AccountantPayroll;

@@ -1,7 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './AccountantDashboard.css';
 
 const AccountantDashboard = () => {
+  const [metrics, setMetrics] = useState({
+    monthlyPayrollTotal: 0,
+    payrollStatus: "Loading...",
+    compliancePercentage: 0,
+    pendingVerifications: 0
+  });
+
+  useEffect(() => {
+    // Fetch critical metrics from the backend
+    axios.get('http://localhost:8080/api/salary-summary/command-center')
+      .then(res => {
+        setMetrics(res.data);
+      })
+      .catch(err => {
+        console.error("Dashboard data fetch failed:", err);
+      });
+  }, []);
+
+  // Formatter for "Rs. 4.2M" style
+  const formatM = (num) => `Rs. ${(num / 1000000).toFixed(1)}M`;
+
   return (
     <div className="pro-dash-content">
       <header className="pro-dash-header">
@@ -10,23 +32,28 @@ const AccountantDashboard = () => {
           <p>Real-time payroll status for NAST System • Fiscal Year 2025/26</p>
         </div>
         <div className="header-date">
-          <span className="calendar-icon">📅</span> Dec 21, 2025
+          <span className="calendar-icon">📅</span> {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
         </div>
       </header>
 
       <section className="kpi-stack-section">
-        <h3 className="sub-section-title">Critical Metrics</h3>
+        <div className="section-header-flex">
+            <h3 className="sub-section-title">Critical Metrics</h3>
+            <span className="live-indicator">● LIVE DATA</span>
+        </div>
+        
         <div className="vertical-kpi-stack">
+          
           {/* Monthly Payroll Row */}
           <div className="kpi-linear-card blue-glow">
             <div className="kpi-icon-container">💰</div>
             <div className="kpi-main-info">
               <span className="kpi-tag">Monthly Payroll</span>
-              <h2 className="kpi-amount">Rs. 4.2M</h2>
+              <h2 className="kpi-amount">{formatM(metrics.monthlyPayrollTotal)}</h2>
             </div>
             <div className="kpi-meta">
               <span className="meta-label">Status</span>
-              <span className="status-pill status-active">Processing</span>
+              <span className="status-pill status-active">{metrics.payrollStatus}</span>
             </div>
           </div>
 
@@ -35,7 +62,7 @@ const AccountantDashboard = () => {
             <div className="kpi-icon-container">🏛️</div>
             <div className="kpi-main-info">
               <span className="kpi-tag">Tax & SSF Compliance</span>
-              <h2 className="kpi-amount">100% Verified</h2>
+              <h2 className="kpi-amount">{metrics.compliancePercentage}% Verified</h2>
             </div>
             <div className="kpi-meta">
               <span className="meta-label">Audit</span>
@@ -48,7 +75,7 @@ const AccountantDashboard = () => {
             <div className="kpi-icon-container">⏳</div>
             <div className="kpi-main-info">
               <span className="kpi-tag">Pending Verifications</span>
-              <h2 className="kpi-amount">12 Records</h2>
+              <h2 className="kpi-amount">{metrics.pendingVerifications} Records</h2>
             </div>
             <div className="kpi-meta">
               <span className="meta-label">Action</span>
@@ -58,39 +85,7 @@ const AccountantDashboard = () => {
         </div>
       </section>
 
-      <section className="ops-grid-section">
-        <h3 className="sub-section-title">Management Portals</h3>
-        <div className="ops-portal-grid">
-          <button className="portal-tile">
-            <span className="tile-emoji">💸</span>
-            <div className="tile-text">
-              <h4>Calculate Salary</h4>
-              <p>Process net disbursements</p>
-            </div>
-          </button>
-          <button className="portal-tile">
-            <span className="tile-emoji">⚖️</span>
-            <div className="tile-text">
-              <h4>Tax Management</h4>
-              <p>Adjust slabs & SSF rates</p>
-            </div>
-          </button>
-          <button className="portal-tile">
-            <span className="tile-emoji">📂</span>
-            <div className="tile-text">
-              <h4>Payroll Ledger</h4>
-              <p>Access historical archives</p>
-            </div>
-          </button>
-          <button className="portal-tile active-portal">
-            <span className="tile-emoji">📊</span>
-            <div className="tile-text">
-              <h4>Financial Reports</h4>
-              <p>Generate CSV/PDF analytics</p>
-            </div>
-          </button>
-        </div>
-      </section>
+      {/* Management Portals Section has been removed to keep focus on reporting */}
     </div>
   );
 };

@@ -1,32 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './Salary.css';
 
 const Salary = () => {
-  const depts = [
-    { name: "Computer Engineering", base: 2500000, tax: 250000, net: 2250000 },
-    { name: "Administration", base: 1200000, tax: 120000, net: 1080000 },
-    { name: "Exam Branch", base: 850000, tax: 85000, net: 765000 }
-  ];
+  const [stats, setStats] = useState({
+    totalGross: 0,
+    totalDeductions: 0,
+    totalNet: 0,
+    departments: []
+  });
+
+  useEffect(() => {
+    // Fetch from your Spring Boot API
+    axios.get('http://localhost:8080/api/salary-summary')
+      .then(res => setStats(res.data))
+      .catch(err => console.error("Error loading payroll data:", err));
+  }, []);
+
+  const formatM = (num) => `Rs. ${(num / 1000000).toFixed(2)}M`;
 
   return (
     <div className="prof-container">
       <div className="prof-header">
         <h1>Salary Summaries</h1>
-        <p>Monthly payroll analytics and departmental expenditure</p>
+        <p>Live departmental expenditure from MySQL Database</p>
       </div>
 
       <div className="metrics-grid">
         <div className="metric-card">
           <span>Total Gross Pay</span>
-          <h2>Rs. 4.55M</h2>
+          <h2>{formatM(stats.totalGross)}</h2>
         </div>
         <div className="metric-card red-border">
           <span>Total Deductions</span>
-          <h2>Rs. 0.45M</h2>
+          <h2>{formatM(stats.totalDeductions)}</h2>
         </div>
         <div className="metric-card green-border">
           <span>Total Net Disbursement</span>
-          <h2>Rs. 4.10M</h2>
+          <h2>{formatM(stats.totalNet)}</h2>
         </div>
       </div>
 
@@ -35,7 +46,7 @@ const Salary = () => {
           <h3>Departmental Breakdown</h3>
         </div>
         <div className="dept-list">
-          {depts.map((d, i) => (
+          {stats.departments.map((d, i) => (
             <div key={i} className="dept-row">
               <div className="dept-info">
                 <h4>{d.name}</h4>
@@ -43,7 +54,9 @@ const Salary = () => {
               </div>
               <div className="dept-progress-container">
                 <div className="progress-label">Tax: Rs. {d.tax.toLocaleString()}</div>
-                <div className="progress-bar"><div className="fill" style={{width: '85%'}}></div></div>
+                <div className="progress-bar">
+                    <div className="fill" style={{ width: `${(d.net / (d.net + d.tax)) * 100}%` }}></div>
+                </div>
               </div>
             </div>
           ))}

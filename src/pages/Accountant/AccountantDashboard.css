@@ -132,6 +132,32 @@
   color: white !important;
   border-color: #4f46e5;
 }
+.portal-tile {
+  background: white;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  padding: 1.5rem;
+  border-radius: 12px;
+}
+
+.portal-tile:hover {
+  border-color: #6366f1; /* Indigo border on hover */
+  transform: translateY(-3px); /* Subtle lift */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.portal-tile:active {
+  transform: scale(0.98); /* Click feedback */
+}
+
+.active-portal {
+  background: #f8fafc;
+  border-left: 4px solid #6366f1;
+}
 
 .active-portal h4, .active-portal p { color: white !important; }
 

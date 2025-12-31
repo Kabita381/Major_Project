@@ -85,6 +85,7 @@ export default function Departments() {
   return (
     <div className="org-section dept-theme">
       <MessageModal {...messageData} onClose={closeMessage} />
+
       <div className="section-header">
         <h3>Departments</h3>
         <button className="add-btn" onClick={() => { setAddingNew(true); setEditingId(null); setFormData({ deptName: "" }); }}>

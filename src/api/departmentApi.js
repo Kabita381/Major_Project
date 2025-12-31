@@ -1,6 +1,7 @@
 // src/api/departmentApi.js
 import api from "./axios";
 
+
 const BASE_URL = "/departments";
 
 export const getDepartments = () => api.get(BASE_URL);

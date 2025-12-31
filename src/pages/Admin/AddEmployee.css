@@ -1,0 +1,63 @@
+.registration-canvas {
+  height: calc(100vh - 120px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden; /* Removes scrollbar */
+}
+
+.form-card {
+  background: white;
+  width: 95%;
+  max-width: 720px;
+  padding: 10px 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.form-header h3 { margin: 0; font-size: 1rem; color: #1e293b; }
+.form-header p { margin: 2px 0 10px; font-size: 9.5px; color: #64748b; }
+
+.compact-grid-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 20px;
+}
+
+.input-group label { font-weight: 600; font-size: 10px; margin-bottom: 2px; color: #475569; }
+.input-group input, .input-group select, .input-group textarea {
+  padding: 5px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.input-group textarea { height: 32px; resize: none; }
+
+.form-footer {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-register {
+  background: #10b981; /* Green */
+  color: white;
+  border: none;
+  padding: 7px 22px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 7px 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}

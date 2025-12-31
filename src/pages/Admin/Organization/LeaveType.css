@@ -5,27 +5,60 @@
   border: 1px solid #e0f2f1;
   box-shadow: 0 4px 12px rgba(0, 150, 136, 0.08);
   width: 100%;
-  height: 450px;
   display: flex;
   flex-direction: column;
+  overflow: visible; /* allow container to grow with content */
 }
 
-.leave-theme h3 { color: #00796b; margin: 0; font-size: 1.2rem; }
+.leave-theme h3 {
+  color: #00796b;
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+}
+
+.leave-theme .table-wrapper {
+  border: 1px solid #e0f2f1;
+  border-radius: 4px;
+  overflow: visible; /* no scrollbars */
+}
+
+.leave-theme .org-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto; /* grow with content */
+}
 
 .leave-theme .org-table thead th {
   background-color: #009688; /* Teal Theme */
+  color: white;
+  padding: 12px;
 }
 
-.leave-theme .add-btn { background-color: #009688; }
+.leave-theme .org-table td {
+  padding: 10px;
+  border-bottom: 1px solid #e0f2f1;
+}
+
+.leave-theme .add-btn {
+  background-color: #009688;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  align-self: flex-start; /* button aligns to the left/top properly */
+  margin-bottom: 15px;
+}
+
 .read-only-id {
   color: #888;
   font-weight: bold;
   font-family: monospace;
-  background-color: #f9f9f9; /* Light grey to signal uneditable */
+  background-color: #f9f9f9;
   text-align: center;
 }
 
-/* Ensure Inputs fit well in small columns */
 .org-table input[type="number"] {
   width: 60px;
   text-align: center;

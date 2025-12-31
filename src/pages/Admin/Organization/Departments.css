@@ -6,28 +6,25 @@
   box-shadow: 0 4px 12px rgba(0, 150, 136, 0.08);
   width: 100%;
   box-sizing: border-box;
-  height: 500px; /* MATCH DESIGNATION HEIGHT */
   display: flex;
   flex-direction: column;
+  overflow: visible; /* No scrollbars */
 }
 
 .table-wrapper {
   flex-grow: 1;
-  overflow-y: auto;
   border: 1px solid #e0f2f1;
   border-radius: 4px;
+  overflow: visible; /* No scrollbars */
 }
 
 .dept-theme .org-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .dept-theme .org-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   background-color: #009688;
   color: white;
   padding: 12px;
@@ -50,5 +47,24 @@
   margin-right: 5px;
 }
 
-.btn-small.update, .btn-small.save { background-color: #e0f2f1; color: #00796b; border: 1px solid #00796b; }
-.btn-small.delete, .btn-small.cancel { background-color: #ffebee; color: #c62828; border: 1px solid #c62828; }
+.btn-small.update, .btn-small.save {
+  background-color: #e0f2f1;
+  color: #00796b;
+  border: 1px solid #00796b;
+}
+
+.btn-small.delete, .btn-small.cancel {
+  background-color: #ffebee;
+  color: #c62828;
+  border: 1px solid #c62828;
+}
+
+.add-btn {
+  background-color: #673ab7;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}

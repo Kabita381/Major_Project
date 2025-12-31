@@ -8,74 +8,69 @@ import {
   Tooltip,
   Legend
 } from "chart.js";
-import api from "../../api/axios"; // JWT-enabled axios
+import api from "../../api/axios"; // JWT-enabled axios instance
 import "./Report.css";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 export default function Report() {
-  const [summary, setSummary] = useState({
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+
+  const [year, setYear] = useState(currentYear);
+  const [month, setMonth] = useState(currentMonth);
+
+  const [payrollSummary, setPayrollSummary] = useState({
     totalEmployees: 0,
-    totalPayroll: 0,
+    monthlyPayroll: 0,
     totalDeductions: 0,
     totalAllowances: 0,
     pendingLeaves: 0
   });
-  const [monthlyData, setMonthlyData] = useState([0,0,0,0,0,0]);
 
+  const [monthlyPayrollData, setMonthlyPayrollData] = useState([]);
+  const [attendanceSummary, setAttendanceSummary] = useState({
+    presentDays: 0,
+    absentDays: 0,
+    leaveDays: 0
+  });
+
+  // Fetch payroll summary and monthly data whenever year changes
   useEffect(() => {
-    fetchReportData();
-  }, []);
+    fetchPayrollData();
+  }, [year]);
 
-  const fetchReportData = async () => {
+  // Fetch attendance summary whenever year or month changes
+  useEffect(() => {
+    fetchAttendanceData();
+  }, [year, month]);
+
+  const fetchPayrollData = async () => {
     try {
-      // Fetch employees
-      const empRes = await api.get("/employees");
-      const employees = Array.isArray(empRes.data) ? empRes.data : [];
-      
-      // Fetch payrolls
-      const payrollRes = await api.get("/payrolls");
-      const payrolls = Array.isArray(payrollRes.data) ? payrollRes.data : [];
-
-      // Fetch leaves
-      const leaveRes = await api.get("/employee-leaves");
-      const leaves = Array.isArray(leaveRes.data) ? leaveRes.data : [];
-
-      // Summary Calculations
-      const totalPayroll = payrolls.reduce((sum, p) => sum + (p.grossSalary || 0), 0);
-      const totalDeductions = payrolls.reduce((sum, p) => sum + (p.totalDeductions || 0), 0);
-      const totalAllowances = payrolls.reduce((sum, p) => sum + (p.totalAllowances || 0), 0);
-      const pendingLeaves = leaves.filter(l => l.status === "Pending").length;
-
-      setSummary({
-        totalEmployees: employees.length,
-        totalPayroll,
-        totalDeductions,
-        totalAllowances,
-        pendingLeaves
-      });
-
-      // Monthly payroll aggregation
-      const months = [0,0,0,0,0,0]; // Jan-Jun
-      payrolls.forEach(p => {
-        if (p.createdAt) {
-          const month = new Date(p.createdAt).getMonth(); // 0-11
-          if (month < 6) months[month] += p.grossSalary || 0;
-        }
-      });
-      setMonthlyData(months);
-
-    } catch (err) {
-      console.error("Report fetch error:", err.response?.data || err.message);
+      const summaryRes = await api.get(`/reports/analytics/summary?year=${year}`);
+      const monthlyRes = await api.get(`/reports/analytics/monthly-payroll?year=${year}`);
+      setPayrollSummary(summaryRes.data);
+      setMonthlyPayrollData(monthlyRes.data);
+    } catch (error) {
+      console.error("Failed to load payroll data:", error);
     }
   };
 
-  const monthlyPayrollData = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+  const fetchAttendanceData = async () => {
+    try {
+      const res = await api.get(`/reports/attendance/summary?year=${year}&month=${month}`);
+      setAttendanceSummary(res.data);
+    } catch (error) {
+      console.error("Failed to load attendance data:", error);
+    }
+  };
+
+  const payrollChart = {
+    labels: monthlyPayrollData.map(item => item.month),
     datasets: [
       {
         label: "Total Salary Paid (NPR)",
-        data: monthlyData,
+        data: monthlyPayrollData.map(item => item.amount),
         backgroundColor: "#1976d2"
       }
     ]
@@ -85,57 +80,75 @@ export default function Report() {
     <div className="report-page">
       <div className="report-left">
         <header className="report-header">
-          <h1>Payroll Reports</h1>
-          <p>Consolidated payroll, employee and financial insights</p>
+          <h1>Payroll & Attendance Reports</h1>
+          <p>Consolidated payroll and attendance insights</p>
+
+          <div className="filters">
+            <label>
+              Year: 
+              <select value={year} onChange={e => setYear(Number(e.target.value))}>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <option key={i} value={currentYear - i}>{currentYear - i}</option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Month: 
+              <select value={month} onChange={e => setMonth(Number(e.target.value))}>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <option key={i+1} value={i+1}>{i+1}</option>
+                ))}
+              </select>
+            </label>
+          </div>
         </header>
 
         <div className="report-summary">
-          <div className="summary-card">
-            <div className="icon">👥</div>
-            <h3>Total Employees</h3>
-            <p>{summary.totalEmployees}</p>
-          </div>
+          <SummaryCard title="Total Employees" value={payrollSummary.totalEmployees} icon="👥" />
+          <SummaryCard title="Monthly Payroll" value={`NPR ${payrollSummary.monthlyPayroll}`} icon="💰" />
+          <SummaryCard title="Total Deductions" value={`NPR ${payrollSummary.totalDeductions}`} icon="📉" />
+          <SummaryCard title="Total Allowances" value={`NPR ${payrollSummary.totalAllowances}`} icon="🧾" />
+          <SummaryCard title="Pending Leaves" value={payrollSummary.pendingLeaves} icon="🕒" />
+        </div>
 
-          <div className="summary-card">
-            <div className="icon">💰</div>
-            <h3>Monthly Payroll</h3>
-            <p>NPR {summary.totalPayroll.toLocaleString()}</p>
-          </div>
-
-          <div className="summary-card">
-            <div className="icon">📉</div>
-            <h3>Total Deductions</h3>
-            <p>NPR {summary.totalDeductions.toLocaleString()}</p>
-          </div>
-
-          <div className="summary-card">
-            <div className="icon">🧾</div>
-            <h3>Total Allowances</h3>
-            <p>NPR {summary.totalAllowances.toLocaleString()}</p>
-          </div>
-
-          <div className="summary-card">
-            <div className="icon">🕒</div>
-            <h3>Pending Leaves</h3>
-            <p>{summary.pendingLeaves}</p>
-          </div>
+        <div className="attendance-summary">
+          <h3>Attendance Summary ({month}/{year})</h3>
+          <SummaryCard title="Present Days" value={attendanceSummary.presentDays} icon="✅" />
+          <SummaryCard title="Absent Days" value={attendanceSummary.absentDays} icon="❌" />
+          <SummaryCard title="Leave Days" value={attendanceSummary.leaveDays} icon="🛌" />
         </div>
       </div>
 
       <div className="report-right">
         <div className="chart-section">
           <h2>Monthly Payroll Expenditure</h2>
-          <Bar
-            data={monthlyPayrollData}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: { legend: { display: true, position: "bottom" } }
-            }}
-            height={180}
-          />
+          {monthlyPayrollData.length > 0 ? (
+            <Bar
+              data={payrollChart}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: "bottom" } }
+              }}
+              height={180}
+            />
+          ) : (
+            <p>No payroll data available</p>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* Reusable Summary Card Component */
+function SummaryCard({ title, value, icon }) {
+  return (
+    <div className="summary-card">
+      <div className="icon">{icon}</div>
+      <h3>{title}</h3>
+      <p>{value}</p>
     </div>
   );
 }

@@ -1,51 +1,88 @@
-.payroll-wrapper { padding: 40px; background-color: #f8fafc; min-height: 100vh; font-family: 'Inter', sans-serif; }
-.payroll-header { margin-bottom: 40px; border-left: 5px solid #0369a1; padding-left: 20px; }
-
-.form-container { 
-  background: white; 
-  padding: 30px; 
-  border-radius: 12px; 
-  box-shadow: 0 4px 20px rgba(0,0,0,0.04); 
-  margin-bottom: 40px; 
-  border: 1px solid #e2e8f0; 
+/* PayrollManagement.css */
+.payroll-container {
+    padding: 30px;
+    background: #f4f7f9;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.form-grid { 
-  display: grid; 
-  grid-template-columns: repeat(4, 1fr); 
-  gap: 25px; 
+.payroll-header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
 }
 
-.input-group label { 
-  display: block; 
-  margin-bottom: 10px; 
-  font-size: 11px; 
-  color: #475569; 
-  font-weight: 700; 
-  letter-spacing: 0.5px;
+.search-bar {
+    padding: 12px 20px;
+    width: 350px;
+    border: 1px solid #d1d9e0;
+    border-radius: 10px;
+    font-size: 14px;
 }
 
-.input-group input { 
-  width: 100%; 
-  padding: 12px; 
-  border: 1px solid #cbd5e1; 
-  border-radius: 8px; 
-  background: #fdfdfd;
+.payroll-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    overflow: hidden;
 }
 
-.btn-submit-form { 
-  background: #0369a1; 
-  color: white; 
-  border: none; 
-  padding: 14px 28px; 
-  border-radius: 8px; 
-  cursor: pointer; 
-  font-weight: 600; 
+.payroll-table {
+    width: 100%;
+    border-collapse: collapse;
 }
 
-.table-container { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); overflow: hidden; border: 1px solid #f1f5f9; }
-.payroll-table { width: 100%; border-collapse: collapse; text-align: left; }
-.payroll-table th { background: #f8fafc; padding: 20px; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-.payroll-table td { padding: 20px; border-bottom: 1px solid #f1f5f9; }
-.badge.processed { background: #dcfce7; color: #166534; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: 800; }
-.btn-slip { background: white; border: 1px solid #e2e8f0; padding: 6px 16px; border-radius: 6px; cursor: pointer; color: #475569; font-weight: 500; }
+.payroll-table th {
+    background: #fdfdfd;
+    padding: 15px 20px;
+    text-align: left;
+    color: #8898aa;
+    font-size: 12px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.payroll-table td {
+    padding: 20px;
+    border-bottom: 1px solid #edf2f7;
+    vertical-align: middle;
+}
+
+.emp-name { font-weight: 700; color: #32325d; display: block; }
+.emp-id { font-size: 12px; color: #8898aa; }
+
+.amount-net {
+    font-size: 18px;
+    font-weight: 800;
+    color: #5e72e4;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-icon {
+    padding: 8px 15px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+/* Green-Blue Theme for PDF */
+.btn-pdf {
+    background: linear-gradient(135deg, #2dce89 0%, #2d89ce 100%);
+    color: white;
+}
+
+/* Blue Theme for Email */
+.btn-email {
+    background: #5e72e4;
+    color: white;
+}
+
+.btn-icon:hover { opacity: 0.85; transform: translateY(-1px); }

@@ -1,193 +1,110 @@
 import React, { useState, useEffect } from "react";
-import api from "../../api/axios"; // Use your axios.js instance
+import api from "../../api/axios";
 import "./Payroll.css";
 
-const PayrollAdmin = () => {
-  const [payrollData, setPayrollData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    empId: "",
-    grossSalary: "",
-    totalAllowances: "",
-    totalDeductions: "",
-    accountId: 1,
-    paymentMethodId: 1,
-    payGroupId: 1
-  });
+const PayrollManagement = () => {
+    const [payrolls, setPayrolls] = useState([]);
+    const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    fetchPayrolls();
-  }, []);
+    useEffect(() => {
+        loadPayrolls();
+    }, []);
 
-  const fetchPayrolls = async () => {
-    try {
-      const res = await api.get("/payrolls");
-      setPayrollData(Array.isArray(res.data) ? res.data : []);
-      setLoading(false);
-    } catch (err) {
-      console.error("Fetch Payroll Error:", err.response?.data || err.message);
-      setLoading(false);
-    }
-  };
+    const loadPayrolls = async () => {
+        const res = await api.get("/payrolls");
+        setPayrolls(res.data);
+    };
 
-  const handleFetchEmployeeDetails = async () => {
-    if (!formData.empId) return;
-    try {
-      const res = await api.get(`/employees/${formData.empId}`);
-      const emp = res.data;
+    const handleEmailDispatch = async (id) => {
+        try {
+            await api.post(`/payrolls/${id}/send-email`);
+            alert("Success: Payslip sent to employee's registered email.");
+        } catch (err) {
+            alert("Error: Access Denied or Email server down.");
+        }
+    };
 
-      if (emp) {
-        setFormData(prev => ({
-          ...prev,
-          grossSalary: emp.basicSalary?.toString() || "",
-          totalAllowances: emp.allowances?.toString() || "0",
-          totalDeductions: emp.deductions?.toString() || "0"
-        }));
-      }
-    } catch (err) {
-      console.error("Employee fetch error:", err.response?.data || err.message);
-    }
-  };
+    const generatePDFView = (data) => {
+        // Logic to open a new window with a printable PDF-style layout
+        const win = window.open("", "_blank");
+        win.document.write(`
+            <html>
+                <style>
+                    body { font-family: sans-serif; padding: 50px; }
+                    .header { text-align: center; border-bottom: 2px solid #444; }
+                    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
+                    .total-box { margin-top: 40px; padding: 20px; background: #f4f7f9; text-align: right; }
+                </style>
+                <body>
+                    <div class="header">
+                        <h1>NAST COLLEGE</h1>
+                        <p>Dhangadhi, Nepal | Salary Slip</p>
+                    </div>
+                    <h3>Employee: ${data.employee.firstName} ${data.employee.lastName}</h3>
+                    <div class="grid">
+                        <div><strong>Earnings</strong><br/>Basic + Allowances: Rs. ${data.grossSalary}</div>
+                        <div><strong>Deductions</strong><br/>Tax: Rs. ${data.totalTax.toFixed(2)}<br/>Others: Rs. ${data.totalDeductions}</div>
+                    </div>
+                    <div class="total-box">
+                        <h2>Net Payable: Rs. ${data.netSalary.toLocaleString()}</h2>
+                    </div>
+                </body>
+            </html>
+        `);
+    };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+    const filtered = payrolls.filter(p => 
+        (p.employee.firstName + " " + p.employee.lastName).toLowerCase().includes(search.toLowerCase()) ||
+        p.employee.empId.toString().includes(search)
+    );
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const payload = {
-        empId: parseInt(formData.empId),
-        grossSalary: parseFloat(formData.grossSalary),
-        totalAllowances: parseFloat(formData.totalAllowances),
-        totalDeductions: parseFloat(formData.totalDeductions),
-        accountId: parseInt(formData.accountId),
-        paymentMethodId: parseInt(formData.paymentMethodId),
-        payGroupId: parseInt(formData.payGroupId)
-      };
-      await api.post("/payrolls", payload);
-      alert("Payroll Processed Successfully!");
-      setShowForm(false);
-      setFormData({ empId: "", grossSalary: "", totalAllowances: "", totalDeductions: "", accountId: 1, paymentMethodId: 1, payGroupId: 1 });
-      fetchPayrolls();
-    } catch (err) {
-      console.error("Payroll Save Error:", err.response?.data || err.message);
-      alert("Error: Check if Employee ID exists and all fields are valid.");
-    }
-  };
-
-  const handlePrint = (data) => {
-    const printWindow = window.open("", "_blank", "width=800,height=700");
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>NAST COLLEGE - Pay Slip</title>
-          <style>
-            body { font-family: 'Segoe UI', sans-serif; padding: 40px; color: #333; }
-            .container { border: 1px solid #000; padding: 40px; max-width: 600px; margin: auto; }
-            .header { text-align: center; border-bottom: 2px solid #333; margin-bottom: 30px; }
-            .row { display: flex; justify-content: space-between; margin: 12px 0; }
-            .total { border-top: 2px solid #000; padding-top: 15px; font-weight: bold; font-size: 1.2em; }
-            @media print { .no-print { display: none; } }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h2>NAST COLLEGE</h2>
-              <p>Dhangadhi, Nepal</p>
-              <h3>PAY SLIP</h3>
+    return (
+        <div className="payroll-container">
+            <div className="payroll-header-section">
+                <h2>Payroll Command Center</h2>
+                <input 
+                    className="search-bar" 
+                    placeholder="Search by Name or Employee ID..." 
+                    onChange={(e) => setSearch(e.target.value)}
+                />
             </div>
-            <div class="row"><span>Employee:</span> <strong>${data.employee?.firstName} ${data.employee?.lastName}</strong></div>
-            <div class="row"><span>Gross Salary:</span> <span>Rs. ${data.grossSalary?.toLocaleString()}</span></div>
-            <div class="row"><span>Allowances:</span> <span>Rs. ${data.totalAllowances?.toLocaleString()}</span></div>
-            <div class="row"><span>Deductions:</span> <span style="color:red">-(Rs. ${data.totalDeductions?.toLocaleString()})</span></div>
-            <div class="row"><span>Tax (1%):</span> <span style="color:red">-(Rs. ${data.totalTax?.toLocaleString()})</span></div>
-            <div class="total row"><span>NET PAYABLE:</span> <span>Rs. ${data.netSalary?.toLocaleString()}</span></div>
-            <div style="text-align:center; margin-top:30px;">
-              <button class="no-print" onclick="window.print()">Print Receipt</button>
+
+            <div className="payroll-card">
+                <table className="payroll-table">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Gross Earnings</th>
+                            <th>Total Deductions</th>
+                            <th>Net Payable</th>
+                            <th>Dispatch Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filtered.map(p => (
+                            <tr key={p.payrollId}>
+                                <td>
+                                    <span className="emp-name">{p.employee.firstName} {p.employee.lastName}</span>
+                                    <span className="emp-id">ID: {p.employee.empId}</span>
+                                </td>
+                                <td>Rs. {p.grossSalary.toLocaleString()}</td>
+                                <td style={{color: '#f5365c'}}>Rs. {(p.totalDeductions + p.totalTax).toLocaleString()}</td>
+                                <td><span className="amount-net">Rs. {p.netSalary.toLocaleString()}</span></td>
+                                <td className="actions-cell">
+                                    <button className="btn-icon btn-pdf" onClick={() => generatePDFView(p)}>
+                                        View PDF
+                                    </button>
+                                    <button className="btn-icon btn-email" onClick={() => handleEmailDispatch(p.payrollId)}>
+                                        Send Email
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-  };
-
-  if (loading) return <div className="payroll-wrapper">Syncing with Server...</div>;
-
-  return (
-    <div className="payroll-wrapper">
-      <header className="payroll-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ fontSize: '24px', color: '#0f172a' }}>Payroll Management</h2>
-            <p style={{ color: '#64748b' }}>Nepal Labor Act Compliance (FY 2081/82)</p>
-          </div>
-          <button className="btn-cancel" onClick={() => setShowForm(!showForm)}
-                  style={{ background: '#0369a1', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }}>
-            {showForm ? "Cancel Entry" : "+ New Payroll"}
-          </button>
         </div>
-      </header>
-
-      {showForm && (
-        <div className="form-container">
-          <form className="payroll-form" onSubmit={handleSubmit}>
-            <div className="form-grid">
-              <div className="input-group">
-                <label>EMPLOYEE ID</label>
-                <input type="number" name="empId" value={formData.empId} onChange={handleInputChange} onBlur={handleFetchEmployeeDetails} required />
-              </div>
-              <div className="input-group">
-                <label>GROSS SALARY</label>
-                <input type="number" name="grossSalary" value={formData.grossSalary} onChange={handleInputChange} required />
-              </div>
-              <div className="input-group">
-                <label>ALLOWANCES</label>
-                <input type="number" name="totalAllowances" value={formData.totalAllowances} onChange={handleInputChange} />
-              </div>
-              <div className="input-group">
-                <label>DEDUCTIONS</label>
-                <input type="number" name="totalDeductions" value={formData.totalDeductions} onChange={handleInputChange} />
-              </div>
-            </div>
-            <button type="submit" className="btn-submit-form" style={{ marginTop: '20px' }}>Confirm & Save Payroll</button>
-          </form>
-        </div>
-      )}
-
-      <div className="table-container">
-        <table className="payroll-table">
-          <thead>
-            <tr>
-              <th>EMPLOYEE NAME</th>
-              <th>STATUS</th>
-              <th>NET AMOUNT</th>
-              <th>PAYMENT INFO</th>
-              <th>ACTION</th>
-            </tr>
-          </thead>
-          <tbody>
-            {payrollData.map((data) => (
-              <tr key={data.payrollId}>
-                <td>
-                  <div style={{ fontWeight: '600' }}>{data.employee?.firstName} {data.employee?.lastName}</div>
-                  <div style={{ fontSize: '0.85em', color: '#64748b' }}>{data.employee?.department?.deptName || "Staff"}</div>
-                </td>
-                <td><span className="badge processed">PROCESSED</span></td>
-                <td style={{ fontWeight: '700', color: '#0369a1' }}>Rs. {data.netSalary?.toLocaleString()}</td>
-                <td>{data.paymentMethod?.methodName || 'Bank Transfer'}</td>
-                <td><button className="btn-slip" onClick={() => handlePrint(data)}>Get Slip</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+    );
 };
 
-export default PayrollAdmin;
+export default PayrollManagement;

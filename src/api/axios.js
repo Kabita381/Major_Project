@@ -1,22 +1,29 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080/api", // your backend base URL
+  baseURL: "http://localhost:8080/api",
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Automatically attach JWT from localStorage
 api.interceptors.request.use(
   (config) => {
-    const session = localStorage.getItem("user_session");
-    if (session) {
-      const { token } = JSON.parse(session);
-      if (token && token !== "undefined" && token !== "null") {
-        config.headers.Authorization = `Bearer ${token}`;
-      } else {
-        localStorage.removeItem("user_session"); // remove invalid token
+    const sessionData = localStorage.getItem("user_session");
+    
+    if (sessionData) {
+      try {
+        const session = JSON.parse(sessionData);
+        // Ensure token exists, isn't null, and isn't the string "undefined"
+        if (session && session.token && session.token !== "undefined" && session.token !== "null") {
+          config.headers.Authorization = `Bearer ${session.token}`;
+        } else {
+          // If data is corrupted, don't send a broken header
+          delete config.headers.Authorization;
+        }
+      } catch (error) {
+        console.error("JSON parsing error for user_session", error);
+        delete config.headers.Authorization;
       }
     }
     return config;

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
 
 /* ================= LAYOUTS ================= */
@@ -52,10 +52,33 @@ const ProtectedRoute = ({ allowedRole }) => {
 };
 
 function App() {
+  // Initialize state with basic error handling for JSON parsing
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem("user_session");
-    return savedUser ? JSON.parse(savedUser) : null;
+    try {
+      const savedUser = localStorage.getItem("user_session");
+      if (savedUser && savedUser !== "undefined" && savedUser !== "null") {
+        return JSON.parse(savedUser);
+      }
+      return null;
+    } catch (error) {
+      console.error("Failed to parse user session:", error);
+      localStorage.removeItem("user_session");
+      return null;
+    }
   });
+
+  // --- Global Effect to handle Session Expiration ---
+  useEffect(() => {
+    // This handles cases where the axios interceptor detects a 401 Unauthorized
+    const handleAuthError = (event) => {
+      localStorage.removeItem("user_session");
+      setUser(null);
+      // Optional: window.location.href = "/?expired=true";
+    };
+
+    window.addEventListener("auth-session-expired", handleAuthError);
+    return () => window.removeEventListener("auth-session-expired", handleAuthError);
+  }, []);
 
   return (
     <Router>

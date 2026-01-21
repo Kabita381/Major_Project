@@ -1,241 +1,199 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { createEmployee, getEmployeeById, updateEmployee } from "../../api/employeeApi";
-import { getDepartments } from "../../api/departmentApi";
-import { getDesignations } from "../../api/designationApi";
-import "./AddEmployee.css";
+import axios from "axios";
+import "./AddEmployee.css"; // Ensure you create or update this CSS file
 
-export default function AddEmployee() {
-  const { id } = useParams();
+const AddEmployee = () => {
+  const { id } = useParams(); // Used for Edit Mode
   const navigate = useNavigate();
   const isEditMode = Boolean(id);
-
-  const [departments, setDepartments] = useState([]);
-  const [designations, setDesignations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Custom message state for dismissal box
-  const [statusMsg, setStatusMsg] = useState({ type: "", text: "" });
 
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     contact: "",
-    deptId: "",
-    designationId: "",
     address: "",
     education: "",
-    maritalStatus: "SINGLE",
+    maritalStatus: "Single",
+    departmentId: "",
+    positionId: "",
     isActive: true
   });
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [deptRes, desigRes] = await Promise.all([getDepartments(), getDesignations()]);
-        setDepartments(deptRes.data || deptRes || []);
-        setDesignations(desigRes.data || desigRes || []);
+  const [departments, setDepartments] = useState([]);
+  const [positions, setPositions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-        if (isEditMode) {
-          const empRes = await getEmployeeById(id);
-          const emp = empRes.data;
-          
-          setFormData({
-            firstName: emp.firstName || "",
-            lastName: emp.lastName || "",
-            email: emp.email || "",
-            contact: emp.contact || "",
-            deptId: emp.department?.deptId || "",
-            designationId: emp.position?.designationId || "",
-            address: emp.address || "",
-            education: emp.education || "",
-            maritalStatus: emp.maritalStatus || "SINGLE",
-            isActive: emp.isActive ?? true
-          });
-        }
+  // Load Departments and Positions for dropdowns
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const deptRes = await axios.get("http://localhost:8080/api/departments");
+        const posRes = await axios.get("http://localhost:8080/api/positions");
+        setDepartments(deptRes.data);
+        setPositions(posRes.data);
       } catch (err) {
-        setStatusMsg({ type: "error", text: "Error loading initial data. Please refresh." });
-      } finally {
-        setLoading(false);
+        console.error("Failed to load metadata", err);
       }
     };
-    loadData();
+
+    const fetchEmployeeData = async () => {
+      if (isEditMode) {
+        setLoading(true);
+        try {
+          const res = await axios.get(`http://localhost:8080/api/employees/${id}`);
+          const emp = res.data;
+          setFormData({
+            ...emp,
+            departmentId: emp.department?.deptId || "",
+            positionId: emp.position?.posId || ""
+          });
+        } catch (err) {
+          setError("Could not load employee details.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchMetadata();
+    fetchEmployeeData();
   }, [id, isEditMode]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setStatusMsg({ type: "loading", text: isEditMode ? "Updating record..." : "Registering & Sending Email..." });
-
-    const payload = {
-      ...formData,
-      department: { deptId: parseInt(formData.deptId) },
-      position: { designationId: parseInt(formData.designationId) },
-      employmentStatus: "FULL_TIME", 
-      basicSalary: 0.0, 
-    };
+    setLoading(true);
+    setError("");
 
     try {
       if (isEditMode) {
-        await updateEmployee(id, payload);
-        setStatusMsg({ type: "success", text: "Profile updated successfully!" });
-        setTimeout(() => navigate("/admin/employees"), 2000);
+        await axios.put(`http://localhost:8080/api/employees/${id}`, formData);
       } else {
-        // GENERATE PASSWORD HERE IN FRONTEND
-        const tempPassword = "NAST" + Math.floor(1000 + Math.random() * 9000);
-        
-        // Attach the frontend-generated password to the payload
-        const createPayload = { 
-            ...payload, 
-            password: tempPassword, 
-            role: "ROLE_EMPLOYEE" 
-        };
-        
-        // Send this specific password to the backend
-        await createEmployee(createPayload);
-        
-        setStatusMsg({ 
-          type: "success", 
-          text: `Account created! Credentials (Pass: ${tempPassword}) sent to ${formData.email}.` 
-        });
-        
-        setTimeout(() => navigate("/admin/employees"), 4000);
+        await axios.post("http://localhost:8080/api/employees", formData);
       }
+      navigate("/admin/employees"); // Go back to list after success
     } catch (err) {
-      const serverMsg = err.response?.data?.message || "Check connection or mandatory fields.";
-      setStatusMsg({ type: "error", text: serverMsg });
+      setError(err.response?.data?.message || "Failed to save employee.");
+    } finally {
+      setLoading(false);
     }
   };
-  if (loading) return <div className="loader">Preparing employee profile...</div>;
+
+  if (loading && isEditMode) return <div className="loader">Loading...</div>;
 
   return (
-    <div className="registration-canvas">
-      <div className="form-card">
-        
-        {/* DISMISSAL MESSAGE BOX */}
-        {statusMsg.text && (
-          <div className={`status-box ${statusMsg.type}`}>
-            <span>{statusMsg.text}</span>
-            <button className="close-btn" type="button" onClick={() => setStatusMsg({ type: "", text: "" })}>×</button>
-          </div>
-        )}
+    <div className="form-container">
+      <header className="form-header">
+        <h2>{isEditMode ? "Update Employee" : "Register New Employee"}</h2>
+        <button className="back-btn" onClick={() => navigate("/admin/employees")}>
+          Back to List
+        </button>
+      </header>
 
-        <header className="form-header">
-          <h3>{isEditMode ? "Edit Employee Profile" : "Employee Registration"}</h3>
-          <p>{isEditMode ? "Modify existing employee details." : "Register a new employee and send login credentials."}</p>
-        </header>
+      {error && <div className="error-banner">{error}</div>}
 
-        <form onSubmit={handleSubmit} className="compact-grid-form">
-          <div className="input-group">
+      <form onSubmit={handleSubmit} className="employee-form">
+        <div className="form-grid">
+          <div className="form-group">
             <label>First Name</label>
-            <input 
-              required 
-              value={formData.firstName} 
-              onChange={e => setFormData({...formData, firstName: e.target.value})} 
+            <input
+              type="text"
+              name="firstName"
+              value={formData.firstName}
+              onChange={handleChange}
+              required
             />
           </div>
 
-          <div className="input-group">
+          <div className="form-group">
             <label>Last Name</label>
-            <input 
-              required 
-              value={formData.lastName} 
-              onChange={e => setFormData({...formData, lastName: e.target.value})} 
+            <input
+              type="text"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
+              required
             />
           </div>
 
-          <div className="input-group">
-            <label>Email (Login ID)</label>
-            <input 
-              type="email" 
-              required 
-              value={formData.email} 
-              onChange={e => setFormData({...formData, email: e.target.value})} 
+          <div className="form-group">
+            <label>Email Address</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
             />
           </div>
 
-          <div className="input-group">
+          <div className="form-group">
             <label>Contact Number</label>
-            <input 
-              required 
-              value={formData.contact} 
-              onChange={e => setFormData({...formData, contact: e.target.value})} 
-              pattern="[0-9]{10}"
+            <input
+              type="text"
+              name="contact"
+              value={formData.contact}
+              onChange={handleChange}
+              required
             />
           </div>
-          
-          <div className="input-group">
+
+          <div className="form-group">
             <label>Department</label>
-            <select 
-              required 
-              value={formData.deptId} 
-              onChange={e => setFormData({...formData, deptId: e.target.value})}
+            <select
+              name="departmentId"
+              value={formData.departmentId}
+              onChange={handleChange}
+              required
             >
-              <option value="">-- Select --</option>
-              {departments.map(d => <option key={d.deptId} value={d.deptId}>{d.deptName}</option>)}
+              <option value="">Select Department</option>
+              {departments.map((d) => (
+                <option key={d.deptId} value={d.deptId}>{d.deptName}</option>
+              ))}
             </select>
           </div>
 
-          <div className="input-group">
-            <label>Designation</label>
-            <select 
-              required 
-              value={formData.designationId} 
-              onChange={e => setFormData({...formData, designationId: e.target.value})}
+          <div className="form-group">
+            <label>Position</label>
+            <select
+              name="positionId"
+              value={formData.positionId}
+              onChange={handleChange}
+              required
             >
-              <option value="">-- Select --</option>
-              {designations.map(d => <option key={d.designationId} value={d.designationId}>{d.designationTitle}</option>)}
+              <option value="">Select Position</option>
+              {positions.map((p) => (
+                <option key={p.posId} value={p.posId}>{p.designationTitle}</option>
+              ))}
             </select>
           </div>
 
-          <div className="input-group">
-            <label>Marital Status</label>
-            <select 
-              required 
-              value={formData.maritalStatus} 
-              onChange={e => setFormData({...formData, maritalStatus: e.target.value})}
-            >
-              <option value="SINGLE">Single</option>
-              <option value="MARRIED">Married</option>
-            </select>
-          </div>
-
-          <div className="input-group">
-            <label>Education</label>
-            <input 
-              required 
-              value={formData.education} 
-              onChange={e => setFormData({...formData, education: e.target.value})} 
+          <div className="form-group full-width">
+            <label>Home Address</label>
+            <textarea
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              required
             />
           </div>
+        </div>
 
-          <div className="input-group full-width">
-            <label>Address</label>
-            <textarea 
-              required 
-              value={formData.address} 
-              onChange={e => setFormData({...formData, address: e.target.value})} 
-            />
-          </div>
-
-          <div className="form-footer">
-            <button 
-              type="submit" 
-              className="btn-register" 
-              disabled={statusMsg.type === "loading"}
-            >
-              {isEditMode ? "Save Changes" : "Register & Send Email"}
-            </button>
-            <button 
-              type="button" 
-              className="btn-cancel" 
-              onClick={() => navigate("/admin/employees")}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
+        <div className="form-actions">
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? "Saving..." : isEditMode ? "Update Record" : "Register Employee"}
+          </button>
+        </div>
+      </form>
     </div>
   );
-}
+};
+
+export default AddEmployee;

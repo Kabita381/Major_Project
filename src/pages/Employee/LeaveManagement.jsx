@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import api from "../../api/axios"; 
 import "./LeaveManagement.css";
 
 const LeaveManagement = () => {
-  // Pull real empId from session
-  const userSession = JSON.parse(localStorage.getItem("user_session"));
-  const currentEmpId = userSession?.user?.employee?.empId || 1; 
+  // 1. DATA FIX: Prioritize empId from session to avoid "ID 35" identity mismatch
+  const userSession = JSON.parse(localStorage.getItem("user_session") || "{}");
+  const currentEmpId = userSession.empId || userSession.user?.employee?.empId || userSession.userId; 
 
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [balances, setBalances] = useState([]);
@@ -23,35 +23,39 @@ const LeaveManagement = () => {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // Load all necessary data from the server
-  const loadLeaveData = async () => {
+  // 2. DATA FETCHING: Load real values from your SQL database
+  const loadLeaveData = useCallback(async () => {
+    if (!currentEmpId) return;
     try {
       setLoading(true);
       setErrorMsg("");
 
       const [typesRes, balRes, histRes] = await Promise.all([
         api.get("/leave-types"),
-        api.get(`/leave-balance/employee/${currentEmpId}`),
+        api.get(`/leave-balance/employee/${currentEmpId}`), // Fetches real SQL balance
         api.get("/employee-leaves")
       ]);
       
       setLeaveTypes(typesRes.data || []);
-      setBalances(Array.isArray(balRes.data) ? balRes.data : []);
+      // Ensure balances is an array even if database is empty for new employee
+      setBalances(Array.isArray(balRes.data) ? balRes.data : [balRes.data]);
       
-      // STRICT FILTERING: Only show history for the logged-in employee
-      const myHistory = histRes.data.filter(item => item.employee?.empId === currentEmpId);
+      // Filter history strictly for this employee ID (e.g., 7 or 13)
+      const myHistory = histRes.data.filter(item => 
+        (item.employee?.empId === currentEmpId) || (item.empId === currentEmpId)
+      );
       setLeaveHistory(myHistory);
     } catch (err) {
       console.error("Fetch Error:", err);
-      setErrorMsg("Failed to sync leave data. Please check if the backend is running.");
+      setErrorMsg("Failed to sync leave data. Using cached or empty records.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentEmpId]);
 
   useEffect(() => {
     loadLeaveData();
-  }, [currentEmpId]);
+  }, [loadLeaveData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,33 +76,35 @@ const LeaveManagement = () => {
       setSuccessMsg("Application Sent Successfully!");
       setFormData({ leaveTypeId: "", startDate: "", endDate: "", reason: "" });
       
-      // AUTO-REFRESH: Fetches the latest balance and history immediately
+      // AUTO-REFRESH: Updates UI with latest database state immediately
       loadLeaveData(); 
       setTimeout(() => setSuccessMsg(""), 5000);
     } catch (err) {
       console.error("Submission error:", err);
-      const msg = err.response?.data?.message || "CORS Error or Backend Constraint.";
+      const msg = err.response?.data?.message || "Check your network connection.";
       setErrorMsg(`Failed: ${msg}`);
     }
   };
 
-  if (loading) return <div className="loading-state">Syncing with Server...</div>;
+  if (loading) return <div className="loading-state">Syncing Quota with Server...</div>;
 
   return (
     <div className="leave-module-wrapper">
       <div className="module-header-center">
         <h1>Employee Leave Portal</h1>
+        <p>Manage requests for <strong>{userSession.username || "Employee"}</strong></p>
       </div>
 
       {successMsg && <div className="success-toast-message">{successMsg}</div>}
       {errorMsg && <div className="error-toast-message">{errorMsg}</div>}
 
       <div className="leave-top-layout">
-        {/* Dynamic Quota Box: Reflects database changes after Admin Approval */}
+        {/* 3. DYNAMIC QUOTA: No longer hardcoded to 25. Shows actual SQL data */}
         <div className="balance-box-compact">
           <span className="box-label">Available Quota</span>
           <div className="days-display">
-            {balances.reduce((sum, b) => sum + (b.currentBalanceDays || 0), 0)}
+            {/* Sums up currentBalanceDays from all leave categories for this specific employee */}
+            {balances.length > 0 ? balances.reduce((sum, b) => sum + (b.currentBalanceDays || 0), 0) : "0"}
             <span className="days-unit">Days</span>
           </div>
           <div className="approved-footer">

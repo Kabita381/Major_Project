@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AiFillEye, AiFillEyeInvisible } from "react-icons/ai";
-import api from "../../api/axios";
+import api from "../../api/axios"; 
 import './login.css';
 
 const Landing = ({ setUser }) => {
@@ -21,52 +21,54 @@ const Landing = ({ setUser }) => {
         }
     }, [location]);
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError(''); 
+   const handleLogin = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(''); 
 
-        // CRITICAL: Clear existing session before attempting a new login
-        // This prevents old tokens from being sent in the headers
-        localStorage.removeItem("user_session");
+    try {
+        // Use the configured api instance to call backend auth
+        const response = await api.post("/auth/login", credentials);
 
-        try {
-            const response = await api.post('/auth/login', credentials);
-            const userData = response.data;
+        if (response.data) {
+            // Destructure response including the fixed empId for Gita and Sita
+            const { token, userId, empId, username, role } = response.data;
 
+            const userData = {
+                token,
+                userId,
+                empId, 
+                username,
+                role
+            };
+
+            // Save session to localStorage so ProtectedRoute and components can access it
             localStorage.setItem("user_session", JSON.stringify(userData));
-            setUser(userData);
+            
+            if (setUser) setUser(userData);
 
-            const role = userData.role;
-            if (role === 'ROLE_ADMIN') {
-                navigate('/admin/dashboard');
-            } else if (role === 'ROLE_ACCOUNTANT') {
+            // Normalize role string to handle database variations
+            const userRole = role.toUpperCase().trim();
+
+            // REDIRECTION LOGIC: Handles all three portal types
+            if (userRole === 'ROLE_EMPLOYEE' || userRole === 'EMPLOYEE') {
+                navigate('/employee/dashboard'); 
+            } else if (userRole === 'ROLE_ACCOUNTANT' || userRole === 'ACCOUNTANT') {
+                // FIXED: Now correctly redirects Sita to the Accountant Portal
                 navigate('/accountant/dashboard');
-            } else if (role === 'ROLE_EMPLOYEE') {
-                navigate('/employee/dashboard');
+            } else if (userRole === 'ROLE_ADMIN' || userRole === 'ADMIN') {
+                navigate('/admin/dashboard');
             } else {
-                setError("Access Denied: Role not recognized.");
+                setError("Unknown account role. Please contact support.");
             }
-
-        } catch (err) {
-            if (err.response) {
-                // If the server returns 401, it's either bad credentials 
-                // or the login route itself is protected.
-                if (err.response.status === 401) {
-                    setError("Invalid username or password.");
-                } else {
-                    const backendError = typeof err.response.data === 'string' 
-                        ? err.response.data 
-                        : err.response.data.message;
-                    setError(backendError || "An error occurred during login.");
-                }
-            } else {
-                setError("Server connection error. Check if backend is running on 8080.");
-            }
-        } finally {
-            setIsLoading(false);
         }
-    };
+    } catch (err) {
+        // Handles 404 (User not found) or 401 (Wrong password)
+        setError(err.response?.data?.message || "Server connection error.");
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     return (
         <div className="login-wrapper">

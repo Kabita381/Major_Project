@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
 
 /* ================= LAYOUTS ================= */
@@ -21,6 +21,8 @@ import AccountantReport from "./pages/Accountant/Report.jsx";
 
 // ADMIN
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
+import Users from "./pages/Admin/users.jsx";
+import AddUser from "./pages/Admin/AddUser.jsx";
 import Employees from "./pages/Admin/Employees.jsx";
 import AddEmployee from "./pages/Admin/AddEmployee.jsx";
 import Attendance from "./pages/Admin/Attendance.jsx";
@@ -41,44 +43,44 @@ const ProtectedRoute = ({ allowedRole }) => {
   const savedUser = localStorage.getItem("user_session");
   const user = savedUser ? JSON.parse(savedUser) : null;
 
+  // If no user is logged in, redirect to the landing/login page
   if (!user) return <Navigate to="/" replace />;
 
-  const userRole = user.role?.toUpperCase().trim();
+  // Safely extract the role name whether it's an object or a plain string
+  const userRoleRaw = typeof user.role === 'object' ? user.role.roleName : user.role;
+
+  if (!userRoleRaw) {
+    console.error("No role found in user session");
+    return <Navigate to="/" replace />;
+  }
+
+  const userRole = userRoleRaw.toUpperCase().trim();
   const requiredRole = allowedRole.toUpperCase().trim();
 
-  if (userRole !== requiredRole) return <Navigate to="/" replace />;
+  // Debugging log to confirm exactly what strings are being compared
+  console.log(`Checking Access: User has [${userRole}], needs [${requiredRole}]`);
 
+  // Robust check for ROLE_ prefix differences (e.g., "ADMIN" vs "ROLE_ADMIN")
+  const hasAccess = 
+    userRole === requiredRole || 
+    userRole === `ROLE_${requiredRole}` || 
+    `ROLE_${userRole}` === requiredRole;
+
+  if (!hasAccess) {
+    console.error("Access Denied: Role mismatch. Redirecting to home.");
+    return <Navigate to="/" replace />;
+  }
+
+  // Outlet allows nested routes (like employees/new) to render inside AdminLayout
   return <Outlet />;
 };
 
+/* ================= MAIN APP COMPONENT ================= */
 function App() {
-  // Initialize state with basic error handling for JSON parsing
   const [user, setUser] = useState(() => {
-    try {
-      const savedUser = localStorage.getItem("user_session");
-      if (savedUser && savedUser !== "undefined" && savedUser !== "null") {
-        return JSON.parse(savedUser);
-      }
-      return null;
-    } catch (error) {
-      console.error("Failed to parse user session:", error);
-      localStorage.removeItem("user_session");
-      return null;
-    }
+    const savedUser = localStorage.getItem("user_session");
+    return savedUser ? JSON.parse(savedUser) : null;
   });
-
-  // --- Global Effect to handle Session Expiration ---
-  useEffect(() => {
-    // This handles cases where the axios interceptor detects a 401 Unauthorized
-    const handleAuthError = (event) => {
-      localStorage.removeItem("user_session");
-      setUser(null);
-      // Optional: window.location.href = "/?expired=true";
-    };
-
-    window.addEventListener("auth-session-expired", handleAuthError);
-    return () => window.removeEventListener("auth-session-expired", handleAuthError);
-  }, []);
 
   return (
     <Router>
@@ -88,7 +90,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* ACCOUNTANT ROUTES */}
+        {/* ACCOUNTANT MODULE */}
         <Route path="/accountant" element={<ProtectedRoute allowedRole="ROLE_ACCOUNTANT" />}>
           <Route element={<AccountantLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
@@ -100,16 +102,29 @@ function App() {
           </Route>
         </Route>
 
-        {/* ADMIN ROUTES */}
+        {/* ADMIN MODULE */}
         <Route path="/admin" element={<ProtectedRoute allowedRole="ROLE_ADMIN" />}>
           <Route element={<AdminLayout />}>
+            {/* Index redirect to dashboard */}
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
 
-            <Route path="employees" element={<Employees />} />
-            <Route path="employees/new" element={<AddEmployee />} />
-            <Route path="employees/edit/:id" element={<AddEmployee />} />
+            {/* --- USER MODULE --- */}
+            <Route path="users" element={<Users />} />
+            <Route path="users/new" element={<AddUser />} />
+            <Route path="users/edit/:id" element={<AddUser />} />
+{/* --- EMPLOYEE MODULE --- */}
+<Route path="employees">
+  {/* This matches /admin/employees exactly */}
+  <Route index element={<Employees />} />
 
+  {/* This matches /admin/employees/new */}
+  <Route path="new" element={<AddEmployee />} />
+
+  {/* This matches /admin/employees/edit/:id */}
+  <Route path="edit/:id" element={<AddEmployee />} />
+</Route>
+            {/* --- OTHER ADMIN PAGES --- */}
             <Route path="attendance" element={<Attendance />} />
             <Route path="leave" element={<Leave />} />
             <Route path="payroll" element={<AdminPayroll />} />
@@ -118,7 +133,7 @@ function App() {
           </Route>
         </Route>
 
-        {/* EMPLOYEE ROUTES */}
+        {/* EMPLOYEE MODULE */}
         <Route path="/employee" element={<ProtectedRoute allowedRole="ROLE_EMPLOYEE" />}>
           <Route element={<EmployeeLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
@@ -130,7 +145,7 @@ function App() {
           </Route>
         </Route>
 
-        {/* FALLBACK */}
+        {/* CATCH-ALL FALLBACK */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

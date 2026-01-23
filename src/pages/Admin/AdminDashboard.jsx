@@ -9,11 +9,13 @@ const AdminDashboard = () => {
     leaveRequests: "00"
   });
   const [recentAttendance, setRecentAttendance] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const formatTime = (timeString) => {
     if (!timeString) return "---";
     try {
-      const date = new Date(timeString);
+      // Handles both ISO strings and HH:mm:ss formats
+      const date = timeString.includes('T') ? new Date(timeString) : new Date(`1970-01-01T${timeString}`);
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
     } catch (e) {
       return timeString;
@@ -27,18 +29,24 @@ const AdminDashboard = () => {
         const token = session.jwt || session.token;
         const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
+        // Fetch Stats
         const statsRes = await axios.get('http://localhost:8080/api/dashboard/admin/stats', { headers });
-        setStats({
-          totalWorkforce: statsRes.data.totalWorkforce,
-          dailyAttendance: statsRes.data.dailyAttendance,
-          leaveRequests: statsRes.data.leaveRequests.toString().padStart(2, '0')
-        });
+        if (statsRes.data) {
+          setStats({
+            totalWorkforce: statsRes.data.totalWorkforce || 0,
+            dailyAttendance: statsRes.data.dailyAttendance ? `${statsRes.data.dailyAttendance}%` : "0%",
+            leaveRequests: (statsRes.data.leaveRequests || 0).toString().padStart(2, '0')
+          });
+        }
 
+        // Fetch Attendance
         const attendanceRes = await axios.get('http://localhost:8080/api/dashboard/recent-attendance', { headers });
-        setRecentAttendance(attendanceRes.data); 
+        setRecentAttendance(Array.isArray(attendanceRes.data) ? attendanceRes.data : []); 
 
       } catch (error) {
         console.error("Dashboard failed to fetch data:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -50,6 +58,8 @@ const AdminDashboard = () => {
     { title: "DAILY ATTENDANCE", value: stats.dailyAttendance, icon: "📅" },
     { title: "LEAVE REQUESTS", value: stats.leaveRequests, icon: "📝" }
   ];
+
+  if (loading) return <div className="loader">Loading Dashboard Data...</div>;
 
   return (
     <div className="dashboard-wrapper">
@@ -89,7 +99,6 @@ const AdminDashboard = () => {
               <tbody>
                 {recentAttendance.length > 0 ? (
                   recentAttendance
-                    /* REQUIRED CODE ADDED BELOW: Filters out employees where isActive is false */
                     .filter(record => record.employee && record.employee.isActive !== false)
                     .map((record, index) => (
                       <tr key={index}>
@@ -107,7 +116,7 @@ const AdminDashboard = () => {
                                   href={`https://www.google.com/maps?q=${record.inGpsLat},${record.inGpsLong}`} 
                                   target="_blank" 
                                   rel="noreferrer"
-                                  style={{ color: '#007bff', fontWeight: 'bold', textDecoration: 'none' }}
+                                  style={{ color: '#10b981', fontWeight: 'bold', textDecoration: 'none' }}
                               >
                                   📍 View Map
                               </a>

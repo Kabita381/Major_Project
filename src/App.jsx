@@ -38,40 +38,36 @@ import LeaveManagement from "./pages/Employee/LeaveManagement.jsx";
 import SalaryAnalytics from "./pages/Employee/SalaryAnalytics.jsx";
 import Settings from "./pages/Employee/Settings.jsx";
 
-/* ================= PROTECTED ROUTE ================= */
+/* ================= PROTECTED ROUTE COMPONENT ================= */
 const ProtectedRoute = ({ allowedRole }) => {
   const savedUser = localStorage.getItem("user_session");
   const user = savedUser ? JSON.parse(savedUser) : null;
 
-  // If no user is logged in, redirect to the landing/login page
-  if (!user) return <Navigate to="/" replace />;
+  // 1. If no user is logged in, redirect to login
+  if (!user || !user.token) return <Navigate to="/" replace />;
 
-  // Safely extract the role name whether it's an object or a plain string
+  // 2. Extract role (handles object or string)
   const userRoleRaw = typeof user.role === 'object' ? user.role.roleName : user.role;
 
   if (!userRoleRaw) {
-    console.error("No role found in user session");
+    console.error("Access Denied: No role found in session.");
     return <Navigate to="/" replace />;
   }
 
   const userRole = userRoleRaw.toUpperCase().trim();
   const requiredRole = allowedRole.toUpperCase().trim();
 
-  // Debugging log to confirm exactly what strings are being compared
-  console.log(`Checking Access: User has [${userRole}], needs [${requiredRole}]`);
-
-  // Robust check for ROLE_ prefix differences (e.g., "ADMIN" vs "ROLE_ADMIN")
+  // 3. Robust Role Matching (Handles ADMIN vs ROLE_ADMIN)
   const hasAccess = 
     userRole === requiredRole || 
-    userRole === `ROLE_${requiredRole}` || 
+    userRole === requiredRole.replace("ROLE_", "") || 
     `ROLE_${userRole}` === requiredRole;
 
   if (!hasAccess) {
-    console.error("Access Denied: Role mismatch. Redirecting to home.");
+    console.error(`Access Denied: User[${userRole}] cannot access [${requiredRole}]`);
     return <Navigate to="/" replace />;
   }
 
-  // Outlet allows nested routes (like employees/new) to render inside AdminLayout
   return <Outlet />;
 };
 
@@ -90,7 +86,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* ACCOUNTANT MODULE */}
+        {/* ACCOUNTANT MODULE (Full Logic Restored) */}
         <Route path="/accountant" element={<ProtectedRoute allowedRole="ROLE_ACCOUNTANT" />}>
           <Route element={<AccountantLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
@@ -102,29 +98,25 @@ function App() {
           </Route>
         </Route>
 
-        {/* ADMIN MODULE */}
+        {/* ADMIN MODULE (Full Logic Restored) */}
         <Route path="/admin" element={<ProtectedRoute allowedRole="ROLE_ADMIN" />}>
           <Route element={<AdminLayout />}>
-            {/* Index redirect to dashboard */}
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
 
-            {/* --- USER MODULE --- */}
+            {/* USER MANAGEMENT */}
             <Route path="users" element={<Users />} />
             <Route path="users/new" element={<AddUser />} />
             <Route path="users/edit/:id" element={<AddUser />} />
-{/* --- EMPLOYEE MODULE --- */}
-<Route path="employees">
-  {/* This matches /admin/employees exactly */}
-  <Route index element={<Employees />} />
 
-  {/* This matches /admin/employees/new */}
-  <Route path="new" element={<AddEmployee />} />
+            {/* EMPLOYEE MANAGEMENT */}
+            <Route path="employees">
+              <Route index element={<Employees />} />
+              <Route path="new" element={<AddEmployee />} />
+              <Route path="edit/:id" element={<AddEmployee />} />
+            </Route>
 
-  {/* This matches /admin/employees/edit/:id */}
-  <Route path="edit/:id" element={<AddEmployee />} />
-</Route>
-            {/* --- OTHER ADMIN PAGES --- */}
+            {/* SYSTEM FEATURES */}
             <Route path="attendance" element={<Attendance />} />
             <Route path="leave" element={<Leave />} />
             <Route path="payroll" element={<AdminPayroll />} />
@@ -133,7 +125,7 @@ function App() {
           </Route>
         </Route>
 
-        {/* EMPLOYEE MODULE */}
+        {/* EMPLOYEE MODULE (Full Logic Restored) */}
         <Route path="/employee" element={<ProtectedRoute allowedRole="ROLE_EMPLOYEE" />}>
           <Route element={<EmployeeLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
@@ -145,7 +137,7 @@ function App() {
           </Route>
         </Route>
 
-        {/* CATCH-ALL FALLBACK */}
+        {/* CATCH-ALL */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

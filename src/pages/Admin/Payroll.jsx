@@ -70,16 +70,6 @@ const PayrollManagement = () => {
     finally { setLoading(false); }
   };
 
-    const loadPayrolls = async () => {
-        try {
-            const res = await api.get("/payrolls");
-            setPayrolls(res.data);
-        } catch (err) {
-            console.error("Failed to fetch payrolls", err);
-        }
-    };
-
-
   // --- NEW: System Logging for Email Actions ---
   const logAction = async (payrollId, actionType, employeeName) => {
     try {

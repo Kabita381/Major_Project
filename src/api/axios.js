@@ -1,8 +1,6 @@
 import axios from "axios";
 
 const api = axios.create({
-  // Ensure this matches your backend EXACTLY. 
-  // Some servers require the trailing slash, others don't.
   baseURL: "http://localhost:8080/api", 
   headers: {
     "Content-Type": "application/json",
@@ -18,10 +16,10 @@ api.interceptors.request.use(
       try {
         const session = JSON.parse(sessionData);
 
-        
-        // FIX: Wrapped Bearer token in backticks (``) to solve Vite pre-transform error
+        // Ensure token exists and is a valid string before attaching
         if (session && session.token && session.token !== "undefined" && session.token !== "null") {
-          config.headers.Authorization = `Bearer ${session.token}`;
+          const cleanToken = session.token.trim();
+          config.headers.Authorization = `Bearer ${cleanToken}`;
         } else {
           delete config.headers.Authorization;
         }
@@ -38,10 +36,13 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Handling global auth failures
+    // Handling global auth failures (401 Unauthorized or 403 Forbidden)
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-      localStorage.removeItem("user_session");
+      console.warn("Auth failure detected. Status:", error.response.status);
+      
+      // Only clear and redirect if we aren't already on the login page
       if (window.location.pathname !== '/') {
+        localStorage.removeItem("user_session");
         window.location.href = "/?expired=true";
       }
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getUserById, createUser, updateUser } from "../../api/userApi";
 import { getRoles } from "../../api/roleApi"; 
@@ -13,57 +13,65 @@ export default function AddUser() {
     username: "",
     email: "",
     password: "",
-    role: { roleId: "" }, // This matches the @ManyToOne structure
+    role: { roleId: "" }, 
     status: "ACTIVE"
   });
 
-  const [roles, setRoles] = useState([]); // State to store roles from DB
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState({ type: "", text: "" });
 
-  useEffect(() => {
-    loadInitialData();
-  }, [id]);
-
-const loadInitialData = async () => {
+  // Wrapped in useCallback to prevent unnecessary re-renders
+  const loadInitialData = useCallback(async () => {
     setLoading(true);
     try {
       // 1. Fetch Roles
       const rolesData = await getRoles();
-      // Since your roleApi.js returns 'response.data', rolesData is the array
-      setRoles(Array.isArray(rolesData) ? rolesData : rolesData.data || []);
+      // Ensure we handle both Axios response structures
+      const finalRoles = Array.isArray(rolesData) ? rolesData : rolesData.data || [];
+      setRoles(finalRoles);
 
       // 2. If editing, fetch the specific user
       if (isEditMode) {
         const userRes = await getUserById(id);
-        const u = userRes.data;
-        setFormData({
-          username: u.username,
-          email: u.email,
-          password: "", 
-          role: { roleId: u.role?.roleId || "" },
-          status: u.status || "ACTIVE"
-        });
+        
+        // FIX: Check if data is nested under userRes.data or directly in userRes
+        const u = userRes.data ? userRes.data : userRes;
+
+        if (u) {
+          setFormData({
+            username: u.username || "",
+            email: u.email || "",
+            password: "", // Always keep password empty on load for security
+            role: { 
+              roleId: u.role?.roleId || u.roleId || "" 
+            },
+            status: u.status || "ACTIVE"
+          });
+        }
       }
     } catch (err) {
       console.error("Initialization error:", err);
-      setStatusMsg({ type: "error", text: "Error loading form data." });
+      setStatusMsg({ type: "error", text: "Error fetching user data. Please check your connection." });
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, isEditMode]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Special handling for the nested Role object
     if (name === "roleId") {
-      setFormData({ 
-        ...formData, 
-        role: { roleId: parseInt(value) } 
-      });
+      setFormData((prev) => ({ 
+        ...prev, 
+        role: { roleId: value } // Keep as string for the dropdown, parse on submit if needed
+      }));
     } else {
-      setFormData({ ...formData, [name]: value });
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
@@ -71,15 +79,27 @@ const loadInitialData = async () => {
     e.preventDefault();
     setLoading(true);
     try {
+      // Create a clean payload (parse roleId to Integer if your backend requires it)
+      const payload = {
+        ...formData,
+        role: { roleId: parseInt(formData.role.roleId) }
+      };
+
       if (isEditMode) {
-        await updateUser(id, formData);
+        // If password is empty in edit mode, you might want to remove it 
+        // from payload so it doesn't overwrite with an empty string
+        if (!payload.password) delete payload.password;
+
+        await updateUser(id, payload);
         setStatusMsg({ type: "success", text: "User updated successfully!" });
       } else {
-        await createUser(formData);
+        await createUser(payload);
         setStatusMsg({ type: "success", text: "User account created!" });
       }
+      
       setTimeout(() => navigate("/admin/users"), 2000);
     } catch (err) {
+      console.error("Submit error:", err);
       setStatusMsg({ 
         type: "error", 
         text: err.response?.data?.message || "Failed to save user." 
@@ -88,6 +108,10 @@ const loadInitialData = async () => {
       setLoading(false);
     }
   };
+
+  if (loading && isEditMode && !formData.username) {
+    return <div className="app-canvas"><p>Loading user data...</p></div>;
+  }
 
   return (
     <div className="app-canvas">
@@ -104,20 +128,36 @@ const loadInitialData = async () => {
           <div className="form-grid">
             <div className="form-group">
               <label>Username</label>
-              <input name="username" value={formData.username} onChange={handleChange} required />
+              <input 
+                name="username" 
+                value={formData.username} 
+                onChange={handleChange} 
+                required 
+              />
             </div>
 
             <div className="form-group">
               <label>Email</label>
-              <input type="email" name="email" value={formData.email} onChange={handleChange} required />
+              <input 
+                type="email" 
+                name="email" 
+                value={formData.email} 
+                onChange={handleChange} 
+                required 
+              />
             </div>
 
             <div className="form-group">
               <label>Password {isEditMode && "(Leave blank to keep current)"}</label>
-              <input type="password" name="password" value={formData.password} onChange={handleChange} required={!isEditMode} />
+              <input 
+                type="password" 
+                name="password" 
+                value={formData.password} 
+                onChange={handleChange} 
+                required={!isEditMode} 
+              />
             </div>
 
-            {/* ROLE SELECT DROPDOWN */}
             <div className="form-group">
               <label>Assign Role</label>
               <select 
@@ -147,7 +187,7 @@ const loadInitialData = async () => {
           <div className="form-actions">
             <button type="button" className="details-btn" onClick={() => navigate("/admin/users")}>Cancel</button>
             <button type="submit" className="primary-btn" disabled={loading}>
-              {isEditMode ? "Save Changes" : "Create User"}
+              {loading ? "Processing..." : (isEditMode ? "Save Changes" : "Create User")}
             </button>
           </div>
         </form>

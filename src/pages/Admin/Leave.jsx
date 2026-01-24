@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api/axios"; 
+import leaveApi from "../../api/leaveApi"; 
 import "./Leave.css";
 
 const LeaveAdmin = () => {
@@ -7,7 +8,11 @@ const LeaveAdmin = () => {
   const [attendanceStats, setAttendanceStats] = useState({}); 
   const [loading, setLoading] = useState(true);
   
-  // Pagination State
+  // Rejection Modal State
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [selectedLeaveId, setSelectedLeaveId] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 10;
 
@@ -15,7 +20,7 @@ const LeaveAdmin = () => {
     try {
       const res = await api.get("/employee-leaves");
       const leaves = Array.isArray(res.data) ? res.data : [];
-      // Sorting by ID descending so newest requests appear first
+      // Sort by newest first
       const sortedLeaves = leaves.sort((a, b) => b.leaveId - a.leaveId);
       setLeaveRequests(sortedLeaves);
 
@@ -46,29 +51,48 @@ const LeaveAdmin = () => {
     fetchLeaves();
   }, []);
 
-  const handleLeaveAction = async (leaveId, action) => {
+  const handleLeaveAction = (leaveId, action) => {
+    if (action === "Rejected") {
+      setSelectedLeaveId(leaveId);
+      setShowRejectModal(true);
+    } else {
+      submitStatusUpdate(leaveId, "Approved", "");
+    }
+  };
+const submitStatusUpdate = async (leaveId, action, reason) => {
     const sessionData = localStorage.getItem("user_session");
     const userSession = sessionData ? JSON.parse(sessionData) : null;
-    const adminId = userSession?.empId || userSession?.id || userSession?.user?.id;
+    
+    // ✅ FIX: Explicitly target empId. 
+    // The error "Admin User not found with ID: 20" means '20' is the userId, 
+    // but the backend needs the associated empId (likely '1' or similar).
+    const adminId = userSession?.empId;
 
     if (!adminId) {
-      alert("Session Error: Please sign out and sign in again.");
-      return;
+        alert("Session error: Employee Profile ID not found. Please log out and log in again.");
+        return;
     }
 
     try {
-      await api.patch(`/employee-leaves/${leaveId}/status`, null, {
-        params: { status: action, adminId: adminId }
-      });
-      alert(`Leave ${action} successfully.`);
-      fetchLeaves();
-    } catch (err) {
-      const errMsg = err.response?.data?.message || err.response?.data || "Server SQL Error";
-      alert("Backend Error: " + errMsg);
-    }
-  };
+        const payload = {
+            status: action,
+            adminId: adminId, // This must be the ID from the Employee table
+            rejectionReason: reason
+        };
 
-  // Pagination Logic
+        await leaveApi.updateLeaveStatus(leaveId, payload);
+        
+        alert(`Leave ${action} successfully.`);
+        setShowRejectModal(false);
+        setRejectionReason("");
+        fetchLeaves(); 
+    } catch (err) {
+        console.error("Submission error:", err);
+        // This will display the exact error message from your backend ResponseEntity
+        alert("Submission Failed: " + (err.response?.data?.message || "Internal Server Error"));
+    }
+};
+
   const indexOfLastRecord = currentPage * recordsPerPage;
   const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
   const currentRecords = leaveRequests.slice(indexOfFirstRecord, indexOfLastRecord);
@@ -92,7 +116,7 @@ const LeaveAdmin = () => {
               <th>Employee</th>
               <th>Leave Type</th>
               <th>Total Working Days</th>
-              <th>Leave Days (This Req)</th>
+              <th>Leave Days</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
@@ -114,6 +138,9 @@ const LeaveAdmin = () => {
                     <span className={`status-badge ${leave.status?.toLowerCase()}`}>
                       {leave.status}
                     </span>
+                    {leave.status === "Rejected" && leave.rejectionReason && (
+                       <div className="reason-text">Reason: {leave.rejectionReason}</div>
+                    )}
                   </td>
                   <td>
                     {leave.status === "Pending" ? (
@@ -136,38 +163,44 @@ const LeaveAdmin = () => {
         </table>
       </div>
 
-      {/* Professional Pagination Controls */}
+      {/* REJECTION MODAL */}
+      {showRejectModal && (
+        <div className="modal-overlay">
+          <div className="rejection-modal">
+            <h3>Reason for Rejection</h3>
+            <p>Please provide a reason why this leave request is being denied.</p>
+            <textarea 
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="e.g., Shortage of staff, peak project period..."
+              required
+            />
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => {
+                setShowRejectModal(false);
+                setRejectionReason("");
+              }}>Cancel</button>
+              <button 
+                className="btn-confirm-reject" 
+                onClick={() => submitStatusUpdate(selectedLeaveId, "Rejected", rejectionReason)}
+                disabled={!rejectionReason.trim()}
+              >
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination */}
       {totalPages > 1 && (
         <div className="pagination-container">
-          <div className="pagination-info">
-            Showing {indexOfFirstRecord + 1} to {Math.min(indexOfLastRecord, leaveRequests.length)} of {leaveRequests.length}
-          </div>
           <div className="pagination-buttons">
-            <button 
-              className="pg-btn" 
-              disabled={currentPage === 1} 
-              onClick={() => paginate(currentPage - 1)}
-            >
-              Previous
-            </button>
-            
+            <button className="pg-btn" disabled={currentPage === 1} onClick={() => paginate(currentPage - 1)}>Prev</button>
             {[...Array(totalPages)].map((_, index) => (
-              <button
-                key={index + 1}
-                className={`pg-num ${currentPage === index + 1 ? 'active' : ''}`}
-                onClick={() => paginate(index + 1)}
-              >
-                {index + 1}
-              </button>
+              <button key={index + 1} className={`pg-num ${currentPage === index + 1 ? 'active' : ''}`} onClick={() => paginate(index + 1)}>{index + 1}</button>
             ))}
-
-            <button 
-              className="pg-btn" 
-              disabled={currentPage === totalPages} 
-              onClick={() => paginate(currentPage + 1)}
-            >
-              Next
-            </button>
+            <button className="pg-btn" disabled={currentPage === totalPages} onClick={() => paginate(currentPage + 1)}>Next</button>
           </div>
         </div>
       )}

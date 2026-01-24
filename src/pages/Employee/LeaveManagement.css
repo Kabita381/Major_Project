@@ -151,3 +151,22 @@ textarea { min-height: 110px; resize: vertical; }
 
 .leave-data-table td:nth-child(6), .leave-data-table td:nth-child(7) { text-align: center; }
 .loading-state { display: flex; align-items: center; justify-content: center; height: 100vh; font-weight: bold; color: #3b82f6; }
+/* Previous styles remain... update the table width if needed */
+
+.rejection-text {
+  color: #c62828;
+  font-weight: 600;
+  font-size: 13px;
+  font-style: italic;
+  display: block;
+  max-width: 200px;
+}
+
+.remarks-cell {
+  background: #fffcfc;
+}
+
+/* Adjust grid if needed for 7 columns */
+.leave-data-table thead th:nth-child(6) {
+  width: 200px;
+}

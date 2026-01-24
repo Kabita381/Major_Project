@@ -1,83 +1,78 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { getDashboardStats } from "../../api/employeeApi"; 
+import { getAttendanceByEmployee } from "../../api/attendanceApi";
 import "./EmployeeDashboard.css";
 
-// --- REMOVED THE DUPLICATE IMPORTS THAT WERE HERE ---
-
 const EmployeeDashboard = () => {
+  const [loading, setLoading] = useState(true);
   const [employeeInfo, setEmployeeInfo] = useState({
     name: "Employee",
-    role: "Staff Member",
     attendance: "0%",
     leaveBalance: "0 Days",
     lastSalary: "Rs. 0"
   });
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const loadData = async () => {
       try {
-        const sessionData = localStorage.getItem("user_session");
-        if (!sessionData) return;
+        const session = JSON.parse(localStorage.getItem("user_session") || "{}");
+        const id = session.empId || session.userId;
 
-        const session = JSON.parse(sessionData);
-        const id = session.userId;
-        const token = session.token;
+        if (!id) return setLoading(false);
 
-        if (!id) {
-          console.error("CRITICAL: userId missing from session.");
-          return;
-        }
+        // Fetching using your updated API helpers
+        const [statsRes, attendanceRes] = await Promise.all([
+          getDashboardStats(id).catch(() => ({ data: {} })),
+          getAttendanceByEmployee(id).catch(() => ({ data: [] }))
+        ]);
 
-        // Endpoint matching the fixed Controller below
-        const response = await axios.get(`http://localhost:8080/api/employee/dashboard/stats/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
+        // Monthly Attendance Calculation
+        const now = new Date();
+        const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const logs = attendanceRes.data || [];
+        const currentMonthLogs = logs.filter(log => {
+            const d = new Date(log.attendanceDate);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         });
+
+        const uniqueDays = new Set(currentMonthLogs.map(l => l.attendanceDate)).size;
+        const percent = totalDays > 0 ? ((uniqueDays / totalDays) * 100).toFixed(1) : 0;
 
         setEmployeeInfo({
-          name: session.username || "Employee",
-          role: session.role || "Staff Member",
-          attendance: response.data.attendanceRate || "0%",
-          leaveBalance: `${response.data.remainingLeaves} Days`,
-          lastSalary: `Rs. ${response.data.lastSalary}`
+          name: session.firstName ? `${session.firstName} ${session.lastName}` : "Employee",
+          attendance: `${percent}%`,
+          leaveBalance: `${statsRes.data?.remainingLeaves || 0} Days`,
+          lastSalary: `Rs. ${statsRes.data?.lastSalary || 0}`
         });
-      } catch (error) {
-        console.error("Dashboard fetch failed:", error);
+      } catch (err) {
+        console.error("Dashboard Load Failed", err);
+      } finally {
+        setLoading(false);
       }
     };
-
-    fetchDashboardData();
+    loadData();
   }, []);
-
-  const stats = [
-    { label: "Attendance", value: employeeInfo.attendance, icon: "🕒", color: "#4f46e5" },
-    { label: "Leave Balance", value: employeeInfo.leaveBalance, icon: "📝", color: "#0891b2" },
-    { label: "Net Salary", value: employeeInfo.lastSalary, icon: "💰", color: "#059669" },
-  ];
 
   return (
     <div className="dashboard-content-wrapper">
-      <header className="dashboard-welcome-header">
-        <div className="greeting-box">
-          <h1>Welcome Back, {employeeInfo.name}! 👋</h1>
-          <p>Here is your real-time performance and payroll summary.</p>
-        </div>
-      </header>
-
+      <h1>Welcome Back, {employeeInfo.name}! 👋</h1>
       <div className="stats-row">
-        {stats.map((stat, index) => (
-          <div key={index} className="status-kpi-card">
-            <div className="kpi-icon-container" style={{ color: stat.color, backgroundColor: `${stat.color}15` }}>
-              {stat.icon}
-            </div>
-            <div className="kpi-data">
-              <span className="kpi-label">{stat.label}</span>
-              <h2 className="kpi-value">{stat.value}</h2>
-            </div>
-          </div>
-        ))}
+        <StatCard label="Attendance (Monthly)" value={employeeInfo.attendance} icon="🕒" color="#4f46e5" />
+        <StatCard label="Leave Balance" value={employeeInfo.leaveBalance} icon="📝" color="#0891b2" />
+        <StatCard label="Net Salary" value={employeeInfo.lastSalary} icon="💰" color="#059669" />
       </div>
     </div>
   );
 };
+
+const StatCard = ({ label, value, icon, color }) => (
+  <div className="status-kpi-card">
+    <div className="kpi-icon-container" style={{ color, backgroundColor: `${color}15` }}>{icon}</div>
+    <div className="kpi-data">
+      <span className="kpi-label">{label}</span>
+      <h2 className="kpi-value">{value}</h2>
+    </div>
+  </div>
+);
 
 export default EmployeeDashboard;

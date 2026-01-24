@@ -3,9 +3,14 @@ import api from "../../api/axios";
 import "./LeaveManagement.css";
 
 const LeaveManagement = () => {
-  // 1. DATA FIX: Prioritize empId from session to avoid "ID 35" identity mismatch
+  // Retrieve session once on component load
   const userSession = JSON.parse(localStorage.getItem("user_session") || "{}");
-  const currentEmpId = userSession.empId || userSession.user?.employee?.empId || userSession.userId; 
+  
+  /**
+   * FIX: We strictly prioritize the new 'empId' from the backend session.
+   * If this is missing, the user likely needs to log out and back in.
+   */
+  const currentEmpId = userSession.empId; 
 
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [balances, setBalances] = useState([]);
@@ -23,31 +28,36 @@ const LeaveManagement = () => {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // 2. DATA FETCHING: Load real values from your SQL database
   const loadLeaveData = useCallback(async () => {
-    if (!currentEmpId) return;
+    // Prevent API calls if identity is not verified
+    if (!currentEmpId) {
+        setLoading(false);
+        setErrorMsg("Session Error: Employee Profile not found. Please re-login.");
+        return;
+    }
+
     try {
       setLoading(true);
       setErrorMsg("");
 
+      // Fetching all necessary data in parallel
       const [typesRes, balRes, histRes] = await Promise.all([
         api.get("/leave-types"),
-        api.get(`/leave-balance/employee/${currentEmpId}`), // Fetches real SQL balance
-        api.get("/employee-leaves")
+        api.get(`/leave-balance/employee/${currentEmpId}`),
+        api.get("/employee-leaves") // We will filter this locally for now
       ]);
       
       setLeaveTypes(typesRes.data || []);
-      // Ensure balances is an array even if database is empty for new employee
       setBalances(Array.isArray(balRes.data) ? balRes.data : [balRes.data]);
       
-      // Filter history strictly for this employee ID (e.g., 7 or 13)
+      // Filter history to only show records belonging to the current employee
       const myHistory = histRes.data.filter(item => 
-        (item.employee?.empId === currentEmpId) || (item.empId === currentEmpId)
+        item.employee?.empId === currentEmpId
       );
       setLeaveHistory(myHistory);
     } catch (err) {
       console.error("Fetch Error:", err);
-      setErrorMsg("Failed to sync leave data. Using cached or empty records.");
+      setErrorMsg("Failed to sync leave data with server.");
     } finally {
       setLoading(false);
     }
@@ -61,7 +71,14 @@ const LeaveManagement = () => {
     e.preventDefault();
     setSuccessMsg("");
     setErrorMsg("");
+
+    // Double-check identity before submission
+    if (!currentEmpId) {
+        setErrorMsg("Submission failed: Missing Employee ID.");
+        return;
+    }
     
+    // Construct payload as expected by EmployeeLeaveServiceImpl.requestLeave()
     const payload = {
       employee: { empId: currentEmpId },
       leaveType: { leaveTypeId: parseInt(formData.leaveTypeId) },
@@ -74,15 +91,16 @@ const LeaveManagement = () => {
     try {
       await api.post("/employee-leaves", payload);
       setSuccessMsg("Application Sent Successfully!");
+      
+      // Reset form fields
       setFormData({ leaveTypeId: "", startDate: "", endDate: "", reason: "" });
       
-      // AUTO-REFRESH: Updates UI with latest database state immediately
+      // Refresh balance and history
       loadLeaveData(); 
       setTimeout(() => setSuccessMsg(""), 5000);
     } catch (err) {
-      console.error("Submission error:", err);
-      const msg = err.response?.data?.message || "Check your network connection.";
-      setErrorMsg(`Failed: ${msg}`);
+      console.error("Submission Error:", err);
+      setErrorMsg(`Failed: ${err.response?.data?.message || "Internal Server Error"}`);
     }
   };
 
@@ -99,11 +117,9 @@ const LeaveManagement = () => {
       {errorMsg && <div className="error-toast-message">{errorMsg}</div>}
 
       <div className="leave-top-layout">
-        {/* 3. DYNAMIC QUOTA: No longer hardcoded to 25. Shows actual SQL data */}
         <div className="balance-box-compact">
           <span className="box-label">Available Quota</span>
           <div className="days-display">
-            {/* Sums up currentBalanceDays from all leave categories for this specific employee */}
             {balances.length > 0 ? balances.reduce((sum, b) => sum + (b.currentBalanceDays || 0), 0) : "0"}
             <span className="days-unit">Days</span>
           </div>
@@ -116,16 +132,11 @@ const LeaveManagement = () => {
           <h2 className="apply-title">Apply for New Leave</h2>
           <form onSubmit={handleSubmit} className="leave-form-grid">
             <div className="form-field">
-              <select 
-                value={formData.leaveTypeId} 
-                onChange={(e) => setFormData({...formData, leaveTypeId: e.target.value})}
-                required
-              >
+              <select value={formData.leaveTypeId} onChange={(e) => setFormData({...formData, leaveTypeId: e.target.value})} required>
                 <option value="">Select Leave Type</option>
                 {leaveTypes.map(t => <option key={t.leaveTypeId} value={t.leaveTypeId}>{t.typeName}</option>)}
               </select>
             </div>
-
             <div className="form-field-row">
               <div className="date-group">
                 <label>From Date</label>
@@ -136,11 +147,9 @@ const LeaveManagement = () => {
                 <input type="date" value={formData.endDate} min={formData.startDate || today} onChange={(e)=>setFormData({...formData, endDate: e.target.value})} required />
               </div>
             </div>
-
             <div className="form-field">
               <textarea placeholder="Reason for leave request..." value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})} required />
             </div>
-
             <div className="submit-action-center">
               <button type="submit" className="btn-apply-gradient">Submit Application</button>
             </div>
@@ -159,6 +168,7 @@ const LeaveManagement = () => {
                 <th>Dates</th>
                 <th>Days</th>
                 <th>Status</th>
+                <th>Admin Remarks</th>
                 <th>Approved By</th>
               </tr>
             </thead>
@@ -171,11 +181,18 @@ const LeaveManagement = () => {
                     <td>{item.startDate} to {item.endDate}</td>
                     <td className="bold-days">{item.totalDays}</td>
                     <td><span className={`status-pill ${item.status?.toLowerCase()}`}>{item.status}</span></td>
+                    <td className="remarks-cell">
+                      {item.status === "Rejected" ? (
+                        <span className="rejection-text">{item.rejectionReason || "No reason provided"}</span>
+                      ) : (
+                        <span className="dash-text">—</span>
+                      )}
+                    </td>
                     <td>{item.approvedBy?.username || "—"}</td>
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan="6" style={{textAlign: 'center'}}>No personal history records found.</td></tr>
+                <tr><td colSpan="7" style={{textAlign: 'center'}}>No personal history records found.</td></tr>
               )}
             </tbody>
           </table>

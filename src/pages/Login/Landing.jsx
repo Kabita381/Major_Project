@@ -21,54 +21,54 @@ const Landing = ({ setUser }) => {
         }
     }, [location]);
 
-   const handleLogin = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(''); 
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError(''); 
 
-    try {
-        // Use the configured api instance to call backend auth
-        const response = await api.post("/auth/login", credentials);
+        try {
+            // Ensure the endpoint matches your AuthController @PostMapping("/login")
+            const response = await api.post("/auth/login", credentials);
 
-        if (response.data) {
-            // Destructure response including the fixed empId for Gita and Sita
-            const { token, userId, empId, username, role } = response.data;
+            if (response.data) {
+                // Destructure all fields including the NEW empId from our backend update
+                const { token, userId, empId, username, role, email } = response.data;
 
-            const userData = {
-                token,
-                userId,
-                empId, 
-                username,
-                role
-            };
+                const userData = {
+                    token,
+                    userId,    // Database User ID (e.g., 16)
+                    empId,     // Database Employee ID (The one needed for Leave actions)
+                    username,
+                    role,
+                    email: email || username 
+                };
 
-            // Save session to localStorage so ProtectedRoute and components can access it
-            localStorage.setItem("user_session", JSON.stringify(userData));
-            
-            if (setUser) setUser(userData);
+                // Store the complete session including empId
+                localStorage.setItem("user_session", JSON.stringify(userData));
+                
+                // Update global state if applicable
+                if (setUser) setUser(userData);
 
-            // Normalize role string to handle database variations
-            const userRole = role.toUpperCase().trim();
+                const userRole = role.toUpperCase().trim();
 
-            // REDIRECTION LOGIC: Handles all three portal types
-            if (userRole === 'ROLE_EMPLOYEE' || userRole === 'EMPLOYEE') {
-                navigate('/employee/dashboard'); 
-            } else if (userRole === 'ROLE_ACCOUNTANT' || userRole === 'ACCOUNTANT') {
-                // FIXED: Now correctly redirects Sita to the Accountant Portal
-                navigate('/accountant/dashboard');
-            } else if (userRole === 'ROLE_ADMIN' || userRole === 'ADMIN') {
-                navigate('/admin/dashboard');
-            } else {
-                setError("Unknown account role. Please contact support.");
+                // Navigation logic based on role
+                if (userRole === 'ROLE_EMPLOYEE' || userRole === 'EMPLOYEE') {
+                    navigate('/employee/dashboard'); 
+                } else if (userRole === 'ROLE_ACCOUNTANT' || userRole === 'ACCOUNTANT') {
+                    navigate('/accountant/dashboard');
+                } else if (userRole === 'ROLE_ADMIN' || userRole === 'ADMIN') {
+                    navigate('/admin/dashboard');
+                } else {
+                    setError("Unknown account role. Please contact support.");
+                }
             }
+        } catch (err) {
+            // Capture specific error messages from your AuthServiceImpl
+            setError(err.response?.data?.message || "Server connection error.");
+        } finally {
+            setIsLoading(false);
         }
-    } catch (err) {
-        // Handles 404 (User not found) or 401 (Wrong password)
-        setError(err.response?.data?.message || "Server connection error.");
-    } finally {
-        setIsLoading(false);
-    }
-};
+    };
 
     return (
         <div className="login-wrapper">

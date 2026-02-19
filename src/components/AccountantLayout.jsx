@@ -11,47 +11,62 @@ const AccountantLayout = () => {
     navigate("/");
   };
 
+  const menuItems = [
+    { path: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { path: 'salary-management', label: 'Salary Management', icon: '💸' },
+    { path: 'payroll-processing', label: 'Payroll Center', icon: '⚙️' },
+    { path: 'tax-compliance', label: 'Tax & Compliance', icon: '📋' },
+    { path: 'financial-reports', label: 'Reports', icon: '📈' },
+  ];
+
+  // Logic to determine page title based on path
+  const getPageTitle = () => {
+    const path = location.pathname.split('/').pop();
+    return path.replace(/-/g, ' ').toUpperCase();
+  };
+
   return (
-    <div className="accountant-container">
-      {/* SIDEBAR SECTION */}
-      <aside className="sidebar">
-        <div className="sidebar-logo">
-          <h2>NAST</h2>
+    <div className="app-shell">
+      <aside className="app-sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-logo">N</div>
+          <h1>NAST Payroll</h1>
         </div>
-        <nav className="sidebar-menu">
-          <Link to="dashboard" className={location.pathname.includes('dashboard') ? 'active' : ''}>
-            🏠 Dashboard
-          </Link>
-          <Link to="salary-management" className={location.pathname.includes('salary') ? 'active' : ''}>
-            💸 Salary Management
-          </Link>
-          <Link to="payroll-processing" className={location.pathname.includes('payroll') ? 'active' : ''}>
-            💰 Payroll Processing
-          </Link>
-          <Link to="tax-compliance" className={location.pathname.includes('tax') ? 'active' : ''}>
-            📄 Tax & Compliance
-          </Link>
-          <Link to="financial-reports" className={location.pathname.includes('report') ? 'active' : ''}>
-            📊 Financial Reports
-          </Link>
+        <nav className="sidebar-nav">
+          {menuItems.map((item) => (
+            <Link 
+              key={item.path}
+              to={item.path} 
+              className={`nav-item ${location.pathname.includes(item.path) ? 'active' : ''}`}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
+            </Link>
+          ))}
         </nav>
-        <button className="signout-btn" onClick={handleSignOut}>Sign Out</button>
+        <div className="sidebar-footer">
+          <button className="logout-action" onClick={handleSignOut}> Sign Out </button>
+        </div>
       </aside>
 
-      {/* MAIN CONTENT SECTION */}
-      <main className="main-content">
-        {/* HEADER: Search removed from here to prevent duplicates */}
-        <header className="top-header">
-          <div className="header-left">
-            {/* This space is now clean for page-specific content */}
+      <main className="app-main">
+        {/* ONLY ONE HEADER HERE */}
+        <header className="app-header">
+          <div className="header-context">
+            <span className="breadcrumb">Accountant / {getPageTitle()}</span>
           </div>
-          <div className="user-info">
-             <div className="status-indicator-active"></div>
-             <span>Accountant: Finance Dept</span>
+          <div className="header-profile">
+            <div className="profile-pill-accountant">
+              <span className="online-status"></span>
+              <div className="profile-meta">
+                <strong>Finance Accountant</strong>
+                <small>Treasury Dept</small>
+              </div>
+            </div>
           </div>
         </header>
 
-        <section className="page-body">
+        <section className="app-content">
           <Outlet />
         </section>
       </main>
